@@ -519,8 +519,6 @@ class KintoneToWP {
 		$url = 'https://'.get_option('kintone_to_wp_kintone_url').'/k/v1/record.json?app='.get_option('kintone_to_wp_target_appid').'&id='.$kintone_record_id;
 		$headers = array( 'X-Cybozu-API-Token' => get_option('kintone_to_wp_kintone_api_token') );
 
-		error_log($url);
-
 		$res = wp_remote_get(
 			$url,
 			array(
