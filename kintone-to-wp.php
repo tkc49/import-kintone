@@ -404,7 +404,7 @@ class KintoneToWP {
 	private function sync( $kintoen_data ){
 
 		$args = array(
-			'meta_key'		=>	'kintone_id',
+			'meta_key'		=>	'kintone_record_id',
 			'meta_value'	=>	$kintoen_data['record']['$id']['value'],
 			'post_status' => array( 'publish', 'pending', 'draft', 'future', 'private' )
 		);
@@ -444,8 +444,8 @@ class KintoneToWP {
 
 
 		$post_title = '';
-		if (array_key_exists(get_option('kintone_to_wp_reflect_post_type'), $kintoen_data['record'])) {
-			$post_title = $kintoen_data['record'][get_option('kintone_to_wp_reflect_post_type')]['value'];
+		if (array_key_exists(get_option('kintone_to_wp_kintone_field_code_for_post_title'), $kintoen_data['record'])) {
+			$post_title = $kintoen_data['record'][get_option('kintone_to_wp_kintone_field_code_for_post_title')]['value'];
 		}
 
 		$my_post = array(
