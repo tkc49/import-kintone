@@ -391,13 +391,34 @@ class KintoneToWP {
 		
 		$update_kintone_data_json = file_get_contents("php://input");
 		$update_kintone_data = json_decode($update_kintone_data_json, true);
+		
+		if( $update_kintone_data['type'] == 'DELETE_RECORD' ){
+			$kintoen_data = $this->get_update_kintone_data_by_id( $update_kintone_data['recordId'] );
+			error_log(var_export($kintoen_data->get_error_code(), true));
 
-		$kintone_record_id = $update_kintone_data['record']['$id']['value'];
+			if($kintoen_data->get_error_code() == 'GAIA_RE01'){
+				$this->delete( $update_kintone_data['recordId'] );
+			}
 
+		}else{
+			$kintone_record_id = $update_kintone_data['record']['$id']['value'];	
+			$kintoen_data = $this->get_update_kintone_data_by_id( $kintone_record_id );
+			$this->sync($kintoen_data);
+		}
 
-		$kintoen_data = $this->get_update_kintone_data_by_id( $kintone_record_id );
-		$this->sync($kintoen_data);
+	}
 
+	private function delete( $record_id ){
+
+		$args = array(
+			'meta_key'		=>	'kintone_record_id',
+			'meta_value'	=>	$record_id,
+			'post_status' => array( 'publish', 'pending', 'draft', 'future', 'private' )
+		);
+		$the_query = new WP_Query( $args );
+		if ( $the_query->have_posts() ) {
+			wp_delete_post( $the_query->post->ID );
+		}
 
 	}
 
