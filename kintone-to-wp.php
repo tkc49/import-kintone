@@ -92,13 +92,40 @@ class KintoneToWP {
 
 		if(! empty( $_POST ) &&  check_admin_referer($this->nonce)){
 
+
 			if( isset($_POST['get_kintone_fields']) ){
-				$kintone_form_data = $this->get_kintone_form_data();
-				$this->update_kintone_basci_information( $kintone_form_data );
+
+				$kintone_basci_information = array();
+
+				$kintone_basci_information['domain'] 	= sanitize_text_field( trim($_POST['kintone_to_wp_kintone_url']) );
+				$kintone_basci_information['app_id']	= sanitize_text_field( trim($_POST['kintone_to_wp_target_appid']) );
+				$kintone_basci_information['url'] 		= 'https://'.$domain.'/k/v1/form.json?app='.$app_id;
+				$kintone_basci_information['token'] 	= sanitize_text_field( trim($_POST['kintone_to_wp_kintone_api_token']) );
+				$kintone_basci_information['post_type']	= sanitize_text_field( trim($_POST['kintone_to_wp_reflect_post_type']) );
+
+
+
+				$kintone_form_data = $this->kintone_api( $kintone_basci_information['url'], $kintone_basci_information['token'] ){
+				$this->update_kintone_basci_information( $kintone_basci_information, $kintone_form_data );
 				
 			}elseif( isset($_POST['save'])){
 
-				$this->update_kintone_app_fields_code_for_wp();
+				$kintone_app_fields_code_for_wp = array();
+				if( isset($_POST['kintone_to_wp_kintone_field_code_for_post_title']) ){
+					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title'] = sanitize_text_field( $_POST['kintone_to_wp_kintone_field_code_for_post_title'] );
+				} 			
+				if( isset($_POST['kintone_to_wp_kintone_field_code_for_terms']) && is_array($_POST['kintone_to_wp_kintone_field_code_for_terms']) ){		
+					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] = sanitize_text_field( $_POST['kintone_to_wp_kintone_field_code_for_terms'] );
+				}
+				if( isset($_POST['kintone_to_wp_setting_custom_fields']) && is_array($_POST['kintone_to_wp_setting_custom_fields']) ){
+					$kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields'] = sanitize_text_field( $_POST['kintone_to_wp_setting_custom_fields'] );
+				}
+
+				$this->update_kintone_app_fields_code_for_wp($kintone_app_fields_code_for_wp);
+
+			}elseif( isset($_POST['bulk_update'])){
+		
+				$this->bulk_update();				
 
 			}
 
@@ -198,6 +225,7 @@ class KintoneToWP {
 	        echo '</table>';
 
 	        echo '<p class="submit"><input type="submit" name="save" class="button-primary" value="save" /></p>';
+	        echo '<p class="submit"><input type="submit" name="bulk_update" class="button-primary" value="Bulk Update" /></p>';
 	       	echo '</form>';
 
 
@@ -208,52 +236,99 @@ class KintoneToWP {
 
 	}
 
-	private function update_kintone_app_fields_code_for_wp(){
+	private function bulk_update(){
+
+		$kintone_data['records'] = array();
+
+		$offset = 0;
+		$kintone_data_count = 0;
+		$reacquisition_flag = true;
+
+		while( $reacquisition_flag ){
+
+			$url = 'https://'.get_option('kintone_to_wp_kintone_url').'/k/v1/records.json?app='.get_option('kintone_to_wp_target_appid').'&query=order by $id asc limit 500 offset '.$offset;
+			$retun_data = $this->kintone_api( $url, get_option('kintone_to_wp_kintone_api_token') );
+
+			$kintone_data['records'] = array_merge($kintone_data['records'], $retun_data['records']);
+
+			if( count($kintone_data['records']) < 500 ){
+				$reacquisition_flag = false;
+			}else{
+				$offset = $offset + 500;
+			}
+		}
+
+
+		foreach ($kintone_data['records'] as $key => $value) {
+
+			$data = array();
+			$data['record'] = $value;
+			$this->sync($data);
+		}
+
+		echo '<div class="updated fade"><p><strong>Updated</strong></p></div>';
+
+	}
+
+	private function update_kintone_app_fields_code_for_wp( $kintone_app_fields_code_for_wp ){
 		
-		update_option('kintone_to_wp_kintone_field_code_for_post_title', $_POST['kintone_to_wp_kintone_field_code_for_post_title']);
-		update_option('kintone_to_wp_kintone_field_code_for_terms', $_POST['kintone_to_wp_kintone_field_code_for_terms']);
-		update_option('kintone_to_wp_setting_custom_fields', $_POST['kintone_to_wp_setting_custom_fields']);
+		if( empty($kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title']) ){
+			delete_option('kintone_to_wp_kintone_field_code_for_post_title');	
+		else{
+			update_option('kintone_to_wp_kintone_field_code_for_post_title', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title']);			
+		}
+
+		if( empty($kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms']) ){
+			delete_option('kintone_to_wp_kintone_field_code_for_terms');	
+		else{
+			update_option('kintone_to_wp_kintone_field_code_for_terms', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms']);			
+		}
+
+		if( empty($kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields']) ){
+			delete_option('kintone_to_wp_setting_custom_fields');	
+		else{
+			update_option('kintone_to_wp_setting_custom_fields', $kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields']);			
+		}
 
 	}	
 
 
-	private function get_kintone_form_data(){
-
-		$url = 'https://'.$_POST['kintone_to_wp_kintone_url'].'/k/v1/form.json?app='.$_POST['kintone_to_wp_target_appid'];
-		$headers = array( 'X-Cybozu-API-Token' => $_POST['kintone_to_wp_kintone_api_token'] );
-
-		$res = wp_remote_get(
-			$url,
-			array(
-				'headers' => $headers
-			)
-		);
-
-		if ( is_wp_error( $res ) ) {
-
-			return $res;
-
-		} else {
-			$return_value = json_decode( $res['body'], true );
-			if ( isset( $return_value['message'] ) && isset( $return_value['code'] ) ) {
-
-				echo '<div class="error notice"><p><strong>'.$return_value['message'].'</strong></p></div>';
-				return new WP_Error( $return_value['code'], $return_value['message'] );
-			}
-
-		}
-		return $return_value;
-	}
-
-	private function update_kintone_basci_information( $kintone_form_data ){
+	private function update_kintone_basci_information( $kintone_basci_information, $kintone_form_data ){
 		
-		update_option('kintone_to_wp_kintone_url', $_POST['kintone_to_wp_kintone_url']);
-		update_option('kintone_to_wp_kintone_api_token', $_POST['kintone_to_wp_kintone_api_token']);
-		update_option('kintone_to_wp_target_appid', $_POST['kintone_to_wp_target_appid']);
-		update_option('kintone_to_wp_reflect_post_type', $_POST['kintone_to_wp_reflect_post_type']);
+
+		if( empty($kintone_basci_information['url']) ){
+			delete_option( 'kintone_to_wp_kintone_url' );	
+		}else{
+			update_option( 'kintone_to_wp_kintone_url', $kintone_basci_information['url'] );
+		}
+
+		if( empty($kintone_basci_information['token']) ){
+			delete_option( 'kintone_to_wp_kintone_api_token' );	
+		}else{
+			update_option( 'kintone_to_wp_kintone_api_token', $kintone_basci_information['token'] );
+		}
+
+		if( empty($kintone_basci_information['app_id']) ){
+			delete_option( 'kintone_to_wp_target_appid' );	
+		}else{
+			update_option( 'kintone_to_wp_target_appid', $kintone_basci_information['app_id'] );
+		}
+		
+		if( empty($kintone_basci_information['post_type']) ){
+			delete_option( 'kintone_to_wp_reflect_post_type' );	
+		}else{
+			update_option( 'kintone_to_wp_reflect_post_type', $kintone_basci_information['post_type'] );
+		}
+
 
 		if(!is_wp_error($kintone_form_data)){
-			update_option('kintone_to_wp_kintone_app_form_data', $kintone_form_data);
+
+			if( empty($kintone_form_data) ){
+				delete_option( 'kintone_to_wp_kintone_app_form_data' );
+			}else{
+				update_option( 'kintone_to_wp_kintone_app_form_data', $kintone_form_data );
+			}
+			
 			echo '<div class="updated notice is-dismissible"><p><strong>Success</strong></p></div>';
 		}
 
@@ -403,7 +478,7 @@ class KintoneToWP {
 		}else{
 			$kintone_record_id = $update_kintone_data['record']['$id']['value'];	
 			$kintoen_data = $this->get_update_kintone_data_by_id( $kintone_record_id );
-			$this->sync($kintoen_data);
+			$this->sync($kintoen_data);			
 		}
 
 	}
@@ -442,8 +517,6 @@ class KintoneToWP {
 			$this->update_kintone_data_to_wp_terms( $post_id, $kintoen_data );			
 
 		}
-
-		echo '<div class="updated fade"><p><strong>Updated</strong></p></div>';
 
 	}
 
@@ -538,10 +611,16 @@ class KintoneToWP {
 	private function get_update_kintone_data_by_id( $kintone_record_id ){
 
 		$url = 'https://'.get_option('kintone_to_wp_kintone_url').'/k/v1/record.json?app='.get_option('kintone_to_wp_target_appid').'&id='.$kintone_record_id;
-		$headers = array( 'X-Cybozu-API-Token' => get_option('kintone_to_wp_kintone_api_token') );
+		return $this->kintone_api( $url, get_option('kintone_to_wp_kintone_api_token') );
+		
+	}	
+
+	private function kintone_api( $request_url, $kintone_token ){
+
+		$headers = array( 'X-Cybozu-API-Token' =>  $kintone_token );
 
 		$res = wp_remote_get(
-			$url,
+			$request_url,
 			array(
 				'headers' => $headers
 			)
@@ -559,12 +638,10 @@ class KintoneToWP {
 				return new WP_Error( $return_value['code'], $return_value['message'] );
 			}
 
-			error_log(var_export($return_value, true));
-
 			return $return_value;
-
 		}
-	}	
+
+	}
 
 	private function make_kintone_array_to_string( $kintone_data ){
 
@@ -576,8 +653,5 @@ class KintoneToWP {
 		}
 		
 		return $record_data;
-
-
 	}
-
 }
