@@ -99,7 +99,7 @@ class KintoneToWP {
 
 				$kintone_basci_information['domain'] 	= sanitize_text_field( trim($_POST['kintone_to_wp_kintone_url']) );
 				$kintone_basci_information['app_id']	= sanitize_text_field( trim($_POST['kintone_to_wp_target_appid']) );
-				$kintone_basci_information['url'] 		= 'https://'.$domain.'/k/v1/form.json?app='.$app_id;
+				$kintone_basci_information['url'] 		= 'https://'.$kintone_basci_information['domain'].'/k/v1/form.json?app='.$kintone_basci_information['app_id'];
 				$kintone_basci_information['token'] 	= sanitize_text_field( trim($_POST['kintone_to_wp_kintone_api_token']) );
 				$kintone_basci_information['post_type']	= sanitize_text_field( trim($_POST['kintone_to_wp_reflect_post_type']) );
 
