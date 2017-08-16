@@ -105,7 +105,7 @@ class KintoneToWP {
 
 
 
-				$kintone_form_data = $this->kintone_api( $kintone_basci_information['url'], $kintone_basci_information['token'] ){
+				$kintone_form_data = $this->kintone_api( $kintone_basci_information['url'], $kintone_basci_information['token'] );
 				$this->update_kintone_basci_information( $kintone_basci_information, $kintone_form_data );
 				
 			}elseif( isset($_POST['save'])){
