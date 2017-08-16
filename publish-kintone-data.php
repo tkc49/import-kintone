@@ -115,10 +115,10 @@ class KintoneToWP {
 					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title'] = sanitize_text_field( $_POST['kintone_to_wp_kintone_field_code_for_post_title'] );
 				} 			
 				if( isset($_POST['kintone_to_wp_kintone_field_code_for_terms']) && is_array($_POST['kintone_to_wp_kintone_field_code_for_terms']) ){		
-					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] = sanitize_text_field( $_POST['kintone_to_wp_kintone_field_code_for_terms'] );
+					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] = $_POST['kintone_to_wp_kintone_field_code_for_terms'];
 				}
 				if( isset($_POST['kintone_to_wp_setting_custom_fields']) && is_array($_POST['kintone_to_wp_setting_custom_fields']) ){
-					$kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields'] = sanitize_text_field( $_POST['kintone_to_wp_setting_custom_fields'] );
+					$kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields'] = $_POST['kintone_to_wp_setting_custom_fields'];
 				}
 
 				$this->update_kintone_app_fields_code_for_wp($kintone_app_fields_code_for_wp);
