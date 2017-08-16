@@ -274,19 +274,19 @@ class KintoneToWP {
 		
 		if( empty($kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title']) ){
 			delete_option('kintone_to_wp_kintone_field_code_for_post_title');	
-		else{
+		}else{
 			update_option('kintone_to_wp_kintone_field_code_for_post_title', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title']);			
 		}
 
 		if( empty($kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms']) ){
 			delete_option('kintone_to_wp_kintone_field_code_for_terms');	
-		else{
+		}else{
 			update_option('kintone_to_wp_kintone_field_code_for_terms', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms']);			
 		}
 
 		if( empty($kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields']) ){
 			delete_option('kintone_to_wp_setting_custom_fields');	
-		else{
+		}else{
 			update_option('kintone_to_wp_setting_custom_fields', $kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields']);			
 		}
 
