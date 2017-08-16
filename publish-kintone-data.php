@@ -104,9 +104,25 @@ class KintoneToWP {
 				$kintone_basci_information['post_type']	= sanitize_text_field( trim($_POST['kintone_to_wp_reflect_post_type']) );
 
 
+				$error_flg = false;
+				if(!$kintone_basci_information['domain']){
+					echo '<div class="error notice is-dismissible"><p><strong>Domain is required</strong></p></div>';
+					$error_flg = true;
+				}else
 
-				$kintone_form_data = $this->kintone_api( $kintone_basci_information['url'], $kintone_basci_information['token'] );
-				$this->update_kintone_basci_information( $kintone_basci_information, $kintone_form_data );
+				if(!$kintone_basci_information['post_type']){
+					echo '<div class="error notice is-dismissible"><p><strong>Post type is required</strong></p></div>';
+					$error_flg = true;
+				}
+
+				if(!$error_flg){
+					$kintone_form_data = $this->kintone_api( $kintone_basci_information['url'], $kintone_basci_information['token'] );
+					if(!is_wp_error($kintone_form_data)){
+						$this->update_kintone_basci_information( $kintone_basci_information, $kintone_form_data );
+					}
+				}
+
+
 				
 			}elseif( isset($_POST['save'])){
 
@@ -636,14 +652,15 @@ class KintoneToWP {
 				$return_value = json_decode( $res['body'], true );
 				if ( isset( $return_value['message'] ) && isset( $return_value['code'] ) ) {
 
-					echo '<div class="updated fade"><p><strong>'.$return_value['message'].'</strong></p></div>';
+					echo '<div class="error fade"><p><strong>'.$return_value['message'].'</strong></p></div>';
 					return new WP_Error( $return_value['code'], $return_value['message'] );
 				}
 
 				return $return_value;
 			}
 		}else{
-			return new WP_Error( $return_value['code'], 'Domain is required' );
+			echo '<div class="error fade"><p><strong>URL is required</strong></p></div>';
+			return new WP_Error( 'Error', 'URL is required' );
 		}
 
 	}
