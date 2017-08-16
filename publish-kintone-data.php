@@ -148,7 +148,7 @@ class KintoneToWP {
 
 		echo '<table class="form-table">';
         echo '	<tr valign="top">';
-        echo '		<th scope="row"><label for="add_text">kintone URL</label></th>';
+        echo '		<th scope="row"><label for="add_text">kintone domain</label></th>';
         echo '		<td><input name="kintone_to_wp_kintone_url" type="text" id="kintone_to_wp_kintone_url" value="'.( $kintone_url == "" ? "" : $kintone_url ).'" class="regular-text" /></td>';
         echo '	</tr>';
         echo '	<tr valign="top">';
@@ -617,28 +617,33 @@ class KintoneToWP {
 
 	private function kintone_api( $request_url, $kintone_token ){
 
-		$headers = array( 'X-Cybozu-API-Token' =>  $kintone_token );
+		if( $request_url ){
 
-		$res = wp_remote_get(
-			$request_url,
-			array(
-				'headers' => $headers
-			)
-		);
+			$headers = array( 'X-Cybozu-API-Token' =>  $kintone_token );
 
-		if ( is_wp_error( $res ) ) {
+			$res = wp_remote_get(
+				$request_url,
+				array(
+					'headers' => $headers
+				)
+			);
 
-			return $res;
+			if ( is_wp_error( $res ) ) {
 
-		} else {
-			$return_value = json_decode( $res['body'], true );
-			if ( isset( $return_value['message'] ) && isset( $return_value['code'] ) ) {
+				return $res;
 
-				echo '<div class="updated fade"><p><strong>'.$return_value['message'].'</strong></p></div>';
-				return new WP_Error( $return_value['code'], $return_value['message'] );
+			} else {
+				$return_value = json_decode( $res['body'], true );
+				if ( isset( $return_value['message'] ) && isset( $return_value['code'] ) ) {
+
+					echo '<div class="updated fade"><p><strong>'.$return_value['message'].'</strong></p></div>';
+					return new WP_Error( $return_value['code'], $return_value['message'] );
+				}
+
+				return $return_value;
 			}
-
-			return $return_value;
+		}else{
+			return new WP_Error( $return_value['code'], 'Domain is required' );
 		}
 
 	}
