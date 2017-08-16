@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: kintone to WP
+ * Plugin Name: Publish kintone data
  * Plugin URI:  
  * Description: The data of kintone can be reflected on WordPress.
  * Version:	 1.0.0

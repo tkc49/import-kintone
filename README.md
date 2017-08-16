@@ -1,1 +1,1 @@
-# kintone to WP
+# Publish kintone data

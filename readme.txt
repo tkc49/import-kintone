@@ -1,4 +1,4 @@
-=== kintone to WP ===
+=== Publish kintone data ===
 Contributors: 
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.8
@@ -25,7 +25,7 @@ Collaborate with team members and partners via apps and workspaces.
 
 == Installation ==
 
-1. Upload the entire `kintone-to-wp` folder to the `/ wp-content / plugins /` directory.
+1. Upload the entire `publish-kintone-data` folder to the `/ wp-content / plugins /` directory.
 2. Write an equation for the confirmatory reaction of each cation and anion based on the experimental results of Operation 3. Activate the plugin through the 'Plugins' menu in WordPress
 
 Open the post edit screen in the WordPress administration screen, and in the text editor pane, put the short code in the place where you want to display.
