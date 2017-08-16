@@ -299,7 +299,7 @@ class KintoneToWP {
 		if( empty($kintone_basci_information['url']) ){
 			delete_option( 'kintone_to_wp_kintone_url' );	
 		}else{
-			update_option( 'kintone_to_wp_kintone_url', $kintone_basci_information['url'] );
+			update_option( 'kintone_to_wp_kintone_url', $kintone_basci_information['domain'] );
 		}
 
 		if( empty($kintone_basci_information['token']) ){
