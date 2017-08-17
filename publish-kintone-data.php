@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:  
  * Description: The data of kintone can be reflected on WordPress.
- * Version:	 1.0.0
+ * Version:	 1.0.3
  * Author:	  Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:	 GPLv2 
@@ -78,7 +78,7 @@ class KintoneToWP {
 	}
 
 	public function admin_menu(){
-		add_submenu_page('options-general.php', 'kintone to WP', 'kintone to WP', 'manage_options', 'kintone-to-wp-setting', array( $this,'kintone_to_wp_setting' ) );
+		add_submenu_page('options-general.php', 'Publish kintone data', 'Publish kintone data', 'manage_options', 'publish-kintone-data-setting', array( $this,'kintone_to_wp_setting' ) );
 	}
 
 
@@ -158,7 +158,7 @@ class KintoneToWP {
 
 		echo '<div class="wrap">';
 		
-		echo '<h2>Setting kintone to WP</h2>';
+		echo '<h2>Setting Publish kintone data</h2>';
 		echo '<form method="post" action="">';
 		echo $wp_n;
 
@@ -168,7 +168,7 @@ class KintoneToWP {
         echo '		<td><input name="kintone_to_wp_kintone_url" type="text" id="kintone_to_wp_kintone_url" value="'.( $kintone_url == "" ? "" : $kintone_url ).'" class="regular-text" /></td>';
         echo '	</tr>';
         echo '	<tr valign="top">';
-        echo '		<th scope="row"><label for="add_text">API Token</label></th>';
+        echo '		<th scope="row"><label for="add_text">API Token</label><br><span style="font-size:10px;">Permission: show record</span></th>';
         echo '		<td><input name="kintone_to_wp_kintone_api_token" type="text" id="kintone_to_wp_kintone_api_token" value="'.( $api_token == "" ? "" : $api_token ).'" class="regular-text" /></td>';
         echo '	</tr>';        
         echo '	<tr valign="top">';
@@ -213,10 +213,14 @@ class KintoneToWP {
 
 		if( !empty($disp_data) ){
 
+
         	echo '<form method="post" action="">';
 
         	echo $wp_n;
 
+        	echo 'Please set this URL to kintone\'s WEBHOOK-><strong>'.site_url('/wp-admin/admin-ajax.php?action=kintone_to_wp_start').'</strong><br><span style="font-size:10px;">Permission: post record, update record, delete record</span>';
+        	echo '<br/>';
+        	echo '<br/>';
 	        echo '	<table>';
 	        echo '	<tr valign="top">';
 	        echo '		<th scope="row"><label for="add_text">Select Post title</label></th>';
