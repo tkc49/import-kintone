@@ -593,6 +593,10 @@ class KintoneToWP {
 
 					update_post_meta( $post_id, $kintone_fieldcode, $kintone_data['record'][$key]['value'] );
 
+				}elseif( $kintone_data['record'][$key]['type'] == 'FILE' ){
+
+					update_kintone_temp_file_to_meta( $post_id, $kintone_data['record'][$key]['value'][0], $key );
+
 				}elseif( $kintone_data['record'][$key]['type'] == 'CREATOR' || $kintone_data['record'][$key]['type'] == 'MODIFIER' ){
 
 					update_post_meta( $post_id, $kintone_fieldcode.'_code', $kintone_data['record'][$key]['value']['code'] );
@@ -677,4 +681,82 @@ class KintoneToWP {
 		
 		return $record_data;
 	}
+
+	private function get_kintone_temp_file( $filekey ){
+
+		$url = 'https://'.get_option('kintone_to_wp_kintone_url').'/k/v1/file.json?fileKey=' . $filekey;
+		return $this->kintone_api( $url, get_option('kintone_to_wp_kintone_api_token') );
+
+	}
+
+	private function update_kintone_temp_file_to_meta( $post_id, $temp_base_data, $post_meta_name, $data ){
+
+
+		$file_data = get_kintone_temp_file( $temp_base_data['fileKey'] );
+
+		$upload_dir = wp_upload_dir();
+		$tmp_dir = $upload_dir['basedir'].'/import_kintone';
+
+		$tmp_filename = $post_id.'_'.$temp_base_data['name'];
+		$tmp_type = $temp_base_data['contentType'];
+		$tmp_size = $temp_base_data['size'];
+
+		if(!file_exists($tmp_dir)){
+			if(mkdir($tmp_dir, 0777)){
+				chmod($tmp_dir, 0777);
+			}
+		}
+
+		$fp = fopen($tmp_dir.'/'.$tmp_filename, 'w');
+		fwrite($fp, $file_data);
+		fclose($fp);
+		chmod($tmp_dir.'/'.$tmp_filename, 0777);
+
+		$upload['tmp_name'] = $tmp_dir.'/'.$tmp_filename;
+		$upload['name'] = $tmp_filename;
+		$upload['type'] = $tmp_type;
+		$upload['error'] = UPLOAD_ERR_OK;
+		$upload['size'] = $tmp_size;
+
+		include_once ABSPATH . 'wp-admin/includes/file.php';
+		include_once ABSPATH . 'wp-admin/includes/media.php';
+		include_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$overrides = array(
+			'test_form' => false,
+			'action' => ''
+		);
+		$file = wp_handle_upload($upload, $overrides);
+
+		$attachment = array(
+			'post_title' => $tmp_filename,
+			'post_mime_type' => $file['type'],
+			'post_parent' => $post_id, 
+		);
+
+		$aid = wp_insert_attachment($attachment, $file['file'], $post_id);
+		$attach_data = wp_generate_attachment_metadata($aid, $file['file'] );
+		$prev_img = get_post_meta($post_id, $post_meta_name, true);
+		if( !empty($prev_img) ){
+			wp_delete_attachment($prev_img);  /*Delete previous image画像が増えていかないように*/
+		}
+
+		update_post_meta( $post_id, $post_meta_name, $aid );
+
+		// if( "post_thumbnail" == $post_meta_name ){
+		// 	update_post_meta( $post_id, '_thumbnail_id', $aid );
+		// }else{
+		// 	update_post_meta( $post_id, $post_meta_name, $aid );  /*Save the attachment id in meta data適当なフィールド名で！*/
+		// }
+
+		if ( !is_wp_error($aid) ){
+			wp_update_attachment_metadata($aid, $attach_data ) );  /*If there is no error, update the metadata of the newly uploaded image*/
+		}
+
+		// ディレクトリー削除
+		@unlink( $tmp_dir.'/'.$tmp_filename );
+		//@rmdir( dirname( $tmp_dir.'/'.$tmp_filename ) ); // remove parent dir if it's removable (empty).
+
+
+	}	
 }
