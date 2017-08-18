@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:  
  * Description: The data of kintone can be reflected on WordPress.
- * Version:	 1.0.3
+ * Version:	 1.0.5
  * Author:	  Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:	 GPLv2 
@@ -165,16 +165,16 @@ class KintoneToWP {
 		echo '<table class="form-table">';
         echo '	<tr valign="top">';
         echo '		<th scope="row"><label for="add_text">kintone domain</label></th>';
-        echo '		<td><input name="kintone_to_wp_kintone_url" type="text" id="kintone_to_wp_kintone_url" value="'.( $kintone_url == "" ? "" : $kintone_url ).'" class="regular-text" /></td>';
+        echo '		<td><input name="kintone_to_wp_kintone_url" type="text" id="kintone_to_wp_kintone_url" value="'.( $kintone_url == "" ? "" : esc_url($kintone_url) ).'" class="regular-text" /></td>';
         echo '	</tr>';
         echo '	<tr valign="top">';
         echo '		<th scope="row"><label for="add_text">API Token</label><br><span style="font-size:10px;">Permission: show record</span></th>';
-        echo '		<td><input name="kintone_to_wp_kintone_api_token" type="text" id="kintone_to_wp_kintone_api_token" value="'.( $api_token == "" ? "" : $api_token ).'" class="regular-text" /></td>';
+        echo '		<td><input name="kintone_to_wp_kintone_api_token" type="text" id="kintone_to_wp_kintone_api_token" value="'.( $api_token == "" ? "" : esc_textarea( $api_token ) ).'" class="regular-text" /></td>';
         echo '	</tr>';        
         echo '	<tr valign="top">';
         echo '		<th scope="row"><label for="add_text">Reflect kintone to post_type</label></th>';
         echo '		<td>';
-        echo '			kintone APP ID:<input name="kintone_to_wp_target_appid" type="text" id="kintone_to_wp_target_appid" value="'.( $target_appid == "" ? "" : $target_appid ).'" class="small-text" /> ->';
+        echo '			kintone APP ID:<input name="kintone_to_wp_target_appid" type="text" id="kintone_to_wp_target_appid" value="'.( $target_appid == "" ? "" : esc_textarea($target_appid) ).'" class="small-text" /> ->';
 		echo '			WordPress Post Type:<select name="kintone_to_wp_reflect_post_type">';
 		echo '				<option value=""></option>';
 		echo '				<option '.selected( $reflect_post_type, "post", false).' value="post">post</option>';
@@ -377,11 +377,11 @@ class KintoneToWP {
 				$html_setting_custom_fields .= '<tr>';
 				if( $kintone_form_value['type'] == 'RECORD_NUMBER' ){
 					
-					$html_setting_custom_fields .= '<th>'.$kintone_form_value['label'].'('.$kintone_form_value['code'].')'.'</th><td><input readonly="readonly" type="text" name="kintone_to_wp_setting_custom_fields['.$kintone_form_value['code'].']" value="kintone_record_id" class="regular-text" /></td>';
+					$html_setting_custom_fields .= '<th>'.esc_html($kintone_form_value['label']).'('.esc_html($kintone_form_value['code']).')'.'</th><td><input readonly="readonly" type="text" name="kintone_to_wp_setting_custom_fields['.esc_attr($kintone_form_value['code']).']" value="kintone_record_id" class="regular-text" /></td>';
 
 				}else{
 					
-					$html_setting_custom_fields .= '<th>'.$kintone_form_value['label'].'('.$kintone_form_value['code'].')'.'</th><td><input type="text" name="kintone_to_wp_setting_custom_fields['.$kintone_form_value['code'].']" value="'.$input_val.'" class="regular-text" /></td>';
+					$html_setting_custom_fields .= '<th>'.esc_html($kintone_form_value['label']).'('.esc_html($kintone_form_value['code']).')'.'</th><td><input type="text" name="kintone_to_wp_setting_custom_fields['.esc_attr($kintone_form_value['code']).']" value="'.esc_attr($input_val).'" class="regular-text" /></td>';
 					
 				}
 				$html_setting_custom_fields .= '</tr>';					
@@ -404,7 +404,7 @@ class KintoneToWP {
 
 		$html_option = '';
 		foreach ($post_types as $value) {
-			$html_option .= '<option '.selected( $reflect_post_type, $value, false).' value="'.$value.'">'.$value.'</option>';
+			$html_option .= '<option '.selected( $reflect_post_type, $value, false).' value="'.esc_attr($value).'">'.esc_html($value).'</option>';
 		}
 
 		return $html_option;
@@ -421,7 +421,7 @@ class KintoneToWP {
 		foreach ($kintone_app_form_data['properties'] as $kintone_form_value) {
 
 			if( array_key_exists( 'code', $kintone_form_value ) ){
-				$html_select_post_title .= '<option '.selected( $kintone_form_value['code'], $kintone_field_code_for_post_title, false).' value="'.$kintone_form_value['code'].'">'.$kintone_form_value['label'].'('.$kintone_form_value['code'].')'.'</option>';
+				$html_select_post_title .= '<option '.selected( $kintone_form_value['code'], $kintone_field_code_for_post_title, false).' value="'.esc_attr($kintone_form_value['code']).'">'.esc_html($kintone_form_value['label']).'('.esc_html($kintone_form_value['code']).')'.'</option>';
 			}	
 			
 		}
@@ -463,11 +463,8 @@ class KintoneToWP {
 			    }
 
 			    if( array_key_exists('code', $kintone_form_value ) ){
-			    	$html_select_term .= '<option '.selected( $kintone_form_value['code'], $input_val, false).' value="'.$kintone_form_value['code'].'">'.$kintone_form_value['label'].'('.$kintone_form_value['code'].')'.'</option>';	
+			    	$html_select_term .= '<option '.selected( $kintone_form_value['code'], $input_val, false).' value="'.esc_attr($kintone_form_value['code']).'">'.esc_html($kintone_form_value['label']).'('.esc_html($kintone_form_value['code']).')'.'</option>';	
 			    }
-
-				
-				
 			}
 
 			$html_select_term .= '</select><br/>';
@@ -489,7 +486,6 @@ class KintoneToWP {
 		
 		if( $update_kintone_data['type'] == 'DELETE_RECORD' ){
 			$kintoen_data = $this->get_update_kintone_data_by_id( $update_kintone_data['recordId'] );
-			error_log(var_export($kintoen_data->get_error_code(), true));
 
 			if($kintoen_data->get_error_code() == 'GAIA_RE01'){
 				$this->delete( $update_kintone_data['recordId'] );
@@ -542,10 +538,11 @@ class KintoneToWP {
 
 	private function insert_kintone_data_to_wp_post( $kintoen_data ){
 
-		$field_code_for_post_title = get_option('kintone_to_wp_kintone_field_code_for_post_title') ;
+		$field_code_for_post_title = get_option('kintone_to_wp_kintone_field_code_for_post_title');		
 
 		$post_id = wp_insert_post(
 			array(
+				'post_type'		=> get_option('kintone_to_wp_reflect_post_type'),
 				'post_title'	=>	$kintoen_data['record'][$field_code_for_post_title]['value']
 			)
 		);

@@ -3,7 +3,7 @@ Contributors:
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.8
 Tested up to: 4.8
-Stable tag: 1.0.3
+Stable tag: 1.0.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,8 @@ https://www.cybozu.com/jp/inquiry/
 
 == Changelog ==
 
+* 1.0.5 - add esc_*
+* 1.0.4 - fix not working post_type
 * 1.0.3 - change plugin's url
 * 1.0.2 - change menu name
 * 1.0.1 - add uninstall.php
