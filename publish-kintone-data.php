@@ -606,8 +606,6 @@ class KintoneToWP {
 		
 		$setting_custom_fields = get_option('kintone_to_wp_setting_custom_fields');
 
-		error_log(var_export('hoge', true));
-		error_log(var_export($setting_custom_fields, true));
 
 		// update kintone_id
 		update_post_meta( $post_id, 'kintone_record_id', $kintone_data['record']['$id']['value'] );
