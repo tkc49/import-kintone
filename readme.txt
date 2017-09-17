@@ -1,9 +1,9 @@
 === Publish kintone data ===
-Contributors: 
+Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.8
 Tested up to: 4.8
-Stable tag: 1.2.2
+Stable tag: 1.2.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,9 @@ Collaborate with team members and partners via apps and workspaces.
 
 * Information in Japanese : https://kintone.cybozu.com/jp/
 * Information in English: https://www.kintone.com/
+
+Thanks
+Cover banner designed by [akari_doi](https://profiles.wordpress.org/akari_doi/)
 
 
 == Installation ==
@@ -48,6 +51,8 @@ Please contact Cybozu.
 
 https://www.cybozu.com/jp/inquiry/
 
+
+
 == Screenshots ==
 
 1. screenshot-1.png
@@ -55,6 +60,8 @@ https://www.cybozu.com/jp/inquiry/
 
 == Changelog ==
 
+* 1.2.4 - add contributer
+* 1.2.3 - add contributer
 * 1.2.2 - fix bug
 * 1.2.1 - fix typo
 * 1.2.0 - New filter hooks: kintone_to_wp_kintone_data

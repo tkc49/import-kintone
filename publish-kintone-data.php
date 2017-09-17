@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:  
  * Description: The data of kintone can be reflected on WordPress.
- * Version:	 1.2.3
+ * Version:	 1.2.4
  * Author:	  Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:	 GPLv2 
