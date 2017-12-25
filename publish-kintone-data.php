@@ -75,6 +75,8 @@ class KintoneToWP {
 		// webhook
 		add_action( 'wp_ajax_kintone_to_wp_start', array( $this, 'kintone_to_wp_start' ) );
 		add_action( 'wp_ajax_nopriv_kintone_to_wp_start', array( $this, 'kintone_to_wp_start' ) );
+
+		add_action( 'save_post', array( $this, 'update_post_kintone_data') );
 	}
 
 	public function admin_menu(){
@@ -255,6 +257,34 @@ class KintoneToWP {
 
 		echo '</div>';
 
+
+	}
+
+	public function update_post_kintone_data( $post_id ){
+		
+		if( wp_is_post_revision( $post_id ) ){
+			return;
+		}
+		
+		remove_action('save_post', array( $this, 'update_post_kintone_data' ) );		
+		
+		$reflect_post_type = get_option('kintone_to_wp_reflect_post_type');
+		if( get_post_type( $post_id ) !== $reflect_post_type ){
+			return;
+		}
+
+		$kintone_id = get_post_meta( $post_id, 'kintone_record_id', true );
+		if( empty( $kintone_id ) ){
+			return;
+		}
+		
+		$url = 'https://'.get_option('kintone_to_wp_kintone_url').'/k/v1/record.json?app='.get_option('kintone_to_wp_target_appid').'&id='.$kintone_id;
+		$retun_data = $this->kintone_api( $url, get_option('kintone_to_wp_kintone_api_token') );
+		$retun_data['kintone_to_wp_status'] = 'normal';
+		
+		$this->sync($retun_data);
+		
+		add_action( 'save_post', array( $this, 'update_post_kintone_data') );
 
 	}
 
