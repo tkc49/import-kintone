@@ -332,7 +332,7 @@ class KintoneToWP {
 			update_option('kintone_to_wp_kintone_field_code_for_post_title', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title']);
 		}
 
-		if( empty($kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms']) ){
+		if( empty($kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms']['category']) && empty($kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms']['post_tag'])){
 			delete_option('kintone_to_wp_kintone_field_code_for_terms');
 		}else{
 			update_option('kintone_to_wp_kintone_field_code_for_terms', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms']);
@@ -677,17 +677,21 @@ class KintoneToWP {
 	private function update_kintone_data_to_wp_terms( $post_id, $kintone_data ){
 
 		$kintone_field_code_for_terms = get_option('kintone_to_wp_kintone_field_code_for_terms');
+		
 
-	    foreach ($kintone_field_code_for_terms as $key => $kintone_field_code_for_term) {
+		if(!empty($kintone_field_code_for_terms['category']) || !empty($kintone_field_code_for_terms['post_tag']) ){
 
-	    	$terms = $kintone_data['record'][$kintone_field_code_for_term]['value'];
-
-	    	if( !is_array($terms) ){
-	    		$terms = array($terms);
-	    	}
-
-	    	$return = wp_set_object_terms( $post_id, $terms, $key );
-	    }
+		    foreach ($kintone_field_code_for_terms as $key => $kintone_field_code_for_term) {
+	
+		    	$terms = $kintone_data['record'][$kintone_field_code_for_term]['value'];
+	
+		    	if( !is_array($terms) ){
+		    		$terms = array($terms);
+		    	}
+	
+		    	$return = wp_set_object_terms( $post_id, $terms, $key );
+		    }
+		}
 	}
 
 	private function get_update_kintone_data_by_id( $kintone_record_id ){
