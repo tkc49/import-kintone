@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.8
 Tested up to: 4.8
-Stable tag: 1.2.4
+Stable tag: 1.2.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -60,6 +60,8 @@ https://www.cybozu.com/jp/inquiry/
 
 == Changelog ==
 
+* 1.2.6 - change plugin's icon
+* 1.2.5 - change plugin's icon
 * 1.2.4 - add contributer
 * 1.2.3 - add contributer
 * 1.2.2 - fix bug
