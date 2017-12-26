@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.8
 Tested up to: 4.8
-Stable tag: 1.2.9
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -60,6 +60,7 @@ https://www.cybozu.com/jp/inquiry/
 
 == Changelog ==
 
+* 1.3.0 - Addition of CFS's corresponding processing
 * 1.2.9 - Changed to delete WordPress posts
 * 1.2.8 - Fix
 * 1.2.7 - Add processing to fetch kintone data again when saving WordPress and fix some bug

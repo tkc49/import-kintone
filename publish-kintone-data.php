@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:
  * Description: The data of kintone can be reflected on WordPress.
- * Version:	 1.2.9
+ * Version:	 1.3.0
  * Author:	  Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:	 GPLv2
@@ -669,7 +669,23 @@ class KintoneToWP {
 
 				}else{
 					$record_data = $this->make_kintone_array_to_string( $kintone_data['record'][$key]['value'] );
-					update_post_meta( $post_id, $kintone_fieldcode, $record_data );
+
+					if( function_exists('CFS') ){
+
+						$field_data = array(
+							$kintone_fieldcode => $record_data
+						);
+
+						$post_data = array(
+							'ID' => $post_id
+						);
+
+						CFS()->save( $field_data, $post_data );
+					}else{
+						update_post_meta( $post_id, $kintone_fieldcode, $record_data );
+					}
+
+
 				}
 
 			}
