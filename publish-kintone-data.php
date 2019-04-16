@@ -86,10 +86,10 @@ class KintoneToWP {
 
 
 	/**************************************
-	*
-	*  Admin
-	*
-	***************************************/
+	 *
+	 *  Admin
+	 *
+	 ***************************************/
 	public function kintone_to_wp_setting(){
 
 		if(! empty( $_POST ) &&  check_admin_referer($this->nonce)){
@@ -112,10 +112,10 @@ class KintoneToWP {
 					$error_flg = true;
 				}else
 
-				if(!$kintone_basci_information['post_type']){
-					echo '<div class="error notice is-dismissible"><p><strong>Post type is required</strong></p></div>';
-					$error_flg = true;
-				}
+					if(!$kintone_basci_information['post_type']){
+						echo '<div class="error notice is-dismissible"><p><strong>Post type is required</strong></p></div>';
+						$error_flg = true;
+					}
 
 				if(!$error_flg){
 					$kintone_form_data = $this->kintone_api( $kintone_basci_information['url'], $kintone_basci_information['token'] );
@@ -167,28 +167,28 @@ class KintoneToWP {
 		echo $wp_n;
 
 		echo '<table class="form-table">';
-        echo '	<tr valign="top">';
-        echo '		<th scope="row"><label for="add_text">kintone domain</label></th>';
-        echo '		<td><input name="kintone_to_wp_kintone_url" type="text" id="kintone_to_wp_kintone_url" value="'.( $kintone_url == "" ? "" : esc_textarea($kintone_url)).'" class="regular-text" /></td>';
-        echo '	</tr>';
-        echo '	<tr valign="top">';
-        echo '		<th scope="row"><label for="add_text">API Token</label><br><span style="font-size:10px;">Permission: show record</span></th>';
-        echo '		<td><input name="kintone_to_wp_kintone_api_token" type="text" id="kintone_to_wp_kintone_api_token" value="'.( $api_token == "" ? "" : esc_textarea( $api_token ) ).'" class="regular-text" /></td>';
-        echo '	</tr>';
-        echo '	<tr valign="top">';
-        echo '		<th scope="row"><label for="add_text">Reflect kintone to post_type</label></th>';
-        echo '		<td>';
-        echo '			kintone APP ID:<input name="kintone_to_wp_target_appid" type="text" id="kintone_to_wp_target_appid" value="'.( $target_appid == "" ? "" : esc_textarea($target_appid) ).'" class="small-text" /> ->';
+		echo '	<tr valign="top">';
+		echo '		<th scope="row"><label for="add_text">kintone domain</label></th>';
+		echo '		<td><input name="kintone_to_wp_kintone_url" type="text" id="kintone_to_wp_kintone_url" value="'.( $kintone_url == "" ? "" : esc_textarea($kintone_url)).'" class="regular-text" /></td>';
+		echo '	</tr>';
+		echo '	<tr valign="top">';
+		echo '		<th scope="row"><label for="add_text">API Token</label><br><span style="font-size:10px;">Permission: show record</span></th>';
+		echo '		<td><input name="kintone_to_wp_kintone_api_token" type="text" id="kintone_to_wp_kintone_api_token" value="'.( $api_token == "" ? "" : esc_textarea( $api_token ) ).'" class="regular-text" /></td>';
+		echo '	</tr>';
+		echo '	<tr valign="top">';
+		echo '		<th scope="row"><label for="add_text">Reflect kintone to post_type</label></th>';
+		echo '		<td>';
+		echo '			kintone APP ID:<input name="kintone_to_wp_target_appid" type="text" id="kintone_to_wp_target_appid" value="'.( $target_appid == "" ? "" : esc_textarea($target_appid) ).'" class="small-text" /> ->';
 		echo '			WordPress Post Type:<select name="kintone_to_wp_reflect_post_type">';
 		echo '				<option value=""></option>';
 		echo '				<option '.selected( $reflect_post_type, "post", false).' value="post">post</option>';
 		echo				$this->get_html_post_type_form_slect_option( $reflect_post_type );
 		echo '			</select>';
 		echo '		</td>';
-        echo '	</tr>';
-        echo '	</table>';
+		echo '	</tr>';
+		echo '	</table>';
 
-        echo '<p class="submit"><input type="submit" name="get_kintone_fields" class="button-primary" value="Get kintone fields" /></p>';
+		echo '<p class="submit"><input type="submit" name="get_kintone_fields" class="button-primary" value="Get kintone fields" /></p>';
 
 		echo '</form>';
 
@@ -218,39 +218,39 @@ class KintoneToWP {
 		if( !empty($disp_data) ){
 
 
-        	echo '<form method="post" action="">';
+			echo '<form method="post" action="">';
 
-        	echo $wp_n;
+			echo $wp_n;
 
-        	echo 'Please set this URL to kintone\'s WEBHOOK-><strong>'.site_url('/wp-admin/admin-ajax.php?action=kintone_to_wp_start').'</strong><br><span style="font-size:10px;">Permission: post record, update record, delete record</span>';
-        	echo '<br/>';
-        	echo '<br/>';
-	        echo '	<table>';
-	        echo '	<tr valign="top">';
-	        echo '		<th scope="row"><label for="add_text">Select Post title</label></th>';
-	        echo '		<td>';
-	        echo '			<select name="kintone_to_wp_kintone_field_code_for_post_title">';
-	        echo 				$this->get_html_post_title_form_select_option( $disp_data );
-	        echo '			</select>';
-	        echo '		</td>';
-	        echo '	</tr>';
-	        echo '	<tr valign="top">';
-	        echo '		<th scope="row"><label for="add_text">Select Term</label></th>';
-	        echo '		<td>';
-	        echo 			$this->get_html_taxonomy_form_select( $disp_data, $reflect_post_type );
-	        echo '		</td>';
-	        echo '	</tr>';
-	        echo '	<tr valign="top">';
-	        echo '		<th scope="row"><label for="add_text">Setting Custom Field</label></th>';
-	        echo '		<td>';
-	        echo 			$this->get_html_custom_field_form_input( $disp_data );
-	        echo '		</td>';
-	        echo '	</tr>';
-	        echo '</table>';
+			echo 'Please set this URL to kintone\'s WEBHOOK-><strong>'.site_url('/wp-admin/admin-ajax.php?action=kintone_to_wp_start').'</strong><br><span style="font-size:10px;">Permission: post record, update record, delete record</span>';
+			echo '<br/>';
+			echo '<br/>';
+			echo '	<table>';
+			echo '	<tr valign="top">';
+			echo '		<th scope="row"><label for="add_text">Select Post title</label></th>';
+			echo '		<td>';
+			echo '			<select name="kintone_to_wp_kintone_field_code_for_post_title">';
+			echo 				$this->get_html_post_title_form_select_option( $disp_data );
+			echo '			</select>';
+			echo '		</td>';
+			echo '	</tr>';
+			echo '	<tr valign="top">';
+			echo '		<th scope="row"><label for="add_text">Select Term</label></th>';
+			echo '		<td>';
+			echo 			$this->get_html_taxonomy_form_select( $disp_data, $reflect_post_type );
+			echo '		</td>';
+			echo '	</tr>';
+			echo '	<tr valign="top">';
+			echo '		<th scope="row"><label for="add_text">Setting Custom Field</label></th>';
+			echo '		<td>';
+			echo 			$this->get_html_custom_field_form_input( $disp_data );
+			echo '		</td>';
+			echo '	</tr>';
+			echo '</table>';
 
-	        echo '<p class="submit"><input type="submit" name="save" class="button-primary" value="save" /></p>';
-	        echo '<p class="submit"><input type="submit" name="bulk_update" class="button-primary" value="Bulk Update" /></p>';
-	       	echo '</form>';
+			echo '<p class="submit"><input type="submit" name="save" class="button-primary" value="save" /></p>';
+			echo '<p class="submit"><input type="submit" name="bulk_update" class="button-primary" value="Bulk Update" /></p>';
+			echo '</form>';
 
 
 		}
@@ -402,14 +402,14 @@ class KintoneToWP {
 			$input_val = '';
 
 			if(is_array($setting_custom_fields)){
-			    foreach ($setting_custom_fields as $key => $custom_form_value) {
-			    	if( array_key_exists( 'code', $kintone_form_value ) ){
-				    	if($kintone_form_value['code'] == $key ){
-				    		$input_val = $custom_form_value;
-				    	}
-				    }
-			    }
-		    }
+				foreach ($setting_custom_fields as $key => $custom_form_value) {
+					if( array_key_exists( 'code', $kintone_form_value ) ){
+						if($kintone_form_value['code'] == $key ){
+							$input_val = $custom_form_value;
+						}
+					}
+				}
+			}
 
 			if( array_key_exists( 'code', $kintone_form_value ) ){
 				$html_setting_custom_fields .= '<tr>';
@@ -472,19 +472,19 @@ class KintoneToWP {
 
 		// Category
 		$terms = get_taxonomies(
-					array(
-						'object_type'	=> array($reflect_post_type),
-						'show_ui'		=> true,
-					),
-					'objects'
-				);
+			array(
+				'object_type'	=> array($reflect_post_type),
+				'show_ui'		=> true,
+			),
+			'objects'
+		);
 
 		$html_select_term = '';
 
 		foreach ($terms as $key => $term) {
 
- 			$html_select_term .= $term->label.'-><select name="kintone_to_wp_kintone_field_code_for_terms['.$term->name.']">';
- 			$kintone_field_code_for_terms = get_option('kintone_to_wp_kintone_field_code_for_terms');
+			$html_select_term .= $term->label.'-><select name="kintone_to_wp_kintone_field_code_for_terms['.$term->name.']">';
+			$kintone_field_code_for_terms = get_option('kintone_to_wp_kintone_field_code_for_terms');
 
 			$html_select_term .= '<option value=""></option>';
 
@@ -493,16 +493,16 @@ class KintoneToWP {
 				$input_val = '';
 
 				if(is_array($kintone_field_code_for_terms)){
-				    foreach ($kintone_field_code_for_terms as $key => $kintone_field_code_for_term) {
-				    	if($term->name == $key ){
-				    		$input_val = $kintone_field_code_for_term;
-				    	}
-				    }
-			    }
+					foreach ($kintone_field_code_for_terms as $key => $kintone_field_code_for_term) {
+						if($term->name == $key ){
+							$input_val = $kintone_field_code_for_term;
+						}
+					}
+				}
 
-			    if( array_key_exists('code', $kintone_form_value ) ){
-			    	$html_select_term .= '<option '.selected( $kintone_form_value['code'], $input_val, false).' value="'.esc_attr($kintone_form_value['code']).'">'.esc_html($kintone_form_value['label']).'('.esc_html($kintone_form_value['code']).')'.'</option>';
-			    }
+				if( array_key_exists('code', $kintone_form_value ) ){
+					$html_select_term .= '<option '.selected( $kintone_form_value['code'], $input_val, false).' value="'.esc_attr($kintone_form_value['code']).'">'.esc_html($kintone_form_value['label']).'('.esc_html($kintone_form_value['code']).')'.'</option>';
+				}
 			}
 
 			$html_select_term .= '</select><br/>';
@@ -701,16 +701,18 @@ class KintoneToWP {
 
 		if(!empty($kintone_field_code_for_terms['category']) || !empty($kintone_field_code_for_terms['post_tag']) ){
 
-		    foreach ($kintone_field_code_for_terms as $key => $kintone_field_code_for_term) {
+			foreach ($kintone_field_code_for_terms as $key => $kintone_field_code_for_term) {
 
-		    	$terms = $kintone_data['record'][$kintone_field_code_for_term]['value'];
+				if(isset($kintone_data['record'][$kintone_field_code_for_term])) {
+					$terms = $kintone_data['record'][$kintone_field_code_for_term]['value'];
 
-		    	if( !is_array($terms) ){
-		    		$terms = array($terms);
-		    	}
+					if (!is_array($terms)) {
+						$terms = array($terms);
+					}
 
-		    	$return = wp_set_object_terms( $post_id, $terms, $key );
-		    }
+					$return = wp_set_object_terms($post_id, $terms, $key);
+				}
+			}
 		}
 	}
 
