@@ -304,7 +304,6 @@ class KintoneToWP {
 		$kintone_data['records'] = array();
 
 		$offset = 0;
-		$kintone_data_count = 0;
 		$reacquisition_flag = true;
 
 		while( $reacquisition_flag ){
