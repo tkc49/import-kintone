@@ -282,6 +282,7 @@ class KintoneToWP {
 			return;
 		}
 
+		// WordPress側で更新処理をされた場合、再度 kintoneからデータを取得して反映する（kintoneの情報がつねに正しい）
 		$url = 'https://'.get_option('kintone_to_wp_kintone_url').'/k/v1/record.json?app='.get_option('kintone_to_wp_target_appid').'&id='.$kintone_id;
 		$retun_data = $this->kintone_api( $url, get_option('kintone_to_wp_kintone_api_token') );
 		$retun_data['kintone_to_wp_status'] = 'normal';
@@ -292,6 +293,12 @@ class KintoneToWP {
 
 	}
 
+	/**********************************************************
+	 * 一括アップデート処理
+	 * kintoneから該当データを全件取得してWPへ反映する
+	 * @param
+	 * @return
+	 **********************************************************/
 	private function bulk_update(){
 
 		$kintone_data['records'] = array();
@@ -315,6 +322,7 @@ class KintoneToWP {
 		}
 
 
+		// @todo 一括更新は kintone でデータを削除したものは、WordPress側では削除されない。(Webhookを最初から使用しているとWebhookで削除はされるけど)
 		foreach ($kintone_data['records'] as $key => $value) {
 
 			$data = array();
@@ -513,10 +521,11 @@ class KintoneToWP {
 	}
 
 	/**************************************
-	*
-	*  Sync
-	*
-	***************************************/
+	 *
+	 * Web Hookからの処理
+	 *
+	 *
+	 ***************************************/
 	public function kintone_to_wp_start(){
 
 		$update_kintone_data_json = file_get_contents("php://input");
@@ -575,6 +584,7 @@ class KintoneToWP {
 		$the_query = new WP_Query( $args );
 		if ( $the_query->have_posts() ) {
 
+			// WordPressにデータが存在するので、UPDATE or DELETE の処理をする
 			if($kintoen_data['kintone_to_wp_status'] == 'normal'){
 				$this->update_kintone_data_to_wp_post( $the_query->post->ID, $kintoen_data );
 				$this->update_kintone_data_to_wp_post_meta( $the_query->post->ID, $kintoen_data );
@@ -586,6 +596,7 @@ class KintoneToWP {
 
 		}else{
 
+			// WordPressにデータが存在しないので、INSERT 処理をする
 			if($kintoen_data['kintone_to_wp_status'] == 'normal'){
 				$post_id = $this->insert_kintone_data_to_wp_post( $kintoen_data );
 				$this->update_kintone_data_to_wp_post_meta( $post_id, $kintoen_data );
