@@ -614,7 +614,7 @@ class KintoneToWP {
 		$post_id = wp_insert_post(
 			array(
 				'post_type'		=> get_option('kintone_to_wp_reflect_post_type'),
-				'post_title'	=>	$kintoen_data['record'][$field_code_for_post_title]['value']
+				'post_title'	=> $kintoen_data['record'][$field_code_for_post_title]['value'],
 				'post_status'   => $post_status
 			)
 		);
