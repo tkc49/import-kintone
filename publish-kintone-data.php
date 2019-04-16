@@ -321,7 +321,6 @@ class KintoneToWP {
 			}
 		}
 
-
 		// @todo 一括更新は kintone でデータを削除したものは、WordPress側では削除されない。(Webhookを最初から使用しているとWebhookで削除はされるけど)
 		foreach ($kintone_data['records'] as $key => $value) {
 
@@ -590,7 +589,6 @@ class KintoneToWP {
 				$this->update_kintone_data_to_wp_post_meta( $the_query->post->ID, $kintoen_data );
 				$this->update_kintone_data_to_wp_terms( $the_query->post->ID, $kintoen_data );
 			}elseif($kintoen_data['kintone_to_wp_status'] == 'delete'){
-
 				wp_delete_post( $the_query->post->ID );
 			}
 
