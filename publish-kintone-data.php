@@ -847,7 +847,7 @@ class KintoneToWP {
 		$file = wp_handle_upload($upload, $overrides);
 
 		$attachment = array(
-			'post_title' => $tmp_filename,
+			'post_title' => $temp_base_data['name'],
 			'post_mime_type' => $file['type'],
 			'post_parent' => $post_id,
 		);
