@@ -608,10 +608,14 @@ class KintoneToWP {
 
 		$field_code_for_post_title = get_option('kintone_to_wp_kintone_field_code_for_post_title');
 
+		$post_status = 'draft';
+		$post_status = apply_filters('import_kintone_insert_post_status', $post_status);
+
 		$post_id = wp_insert_post(
 			array(
 				'post_type'		=> get_option('kintone_to_wp_reflect_post_type'),
 				'post_title'	=>	$kintoen_data['record'][$field_code_for_post_title]['value']
+				'post_status'   => $post_status
 			)
 		);
 
