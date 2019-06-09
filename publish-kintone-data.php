@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:
  * Description: The data of kintone can be reflected on WordPress.
- * Version:	 1.4.0
+ * Version:	 1.5.0
  * Author:	  Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:	 GPLv2
@@ -709,24 +709,21 @@ class KintoneToWP {
 	private function update_kintone_data_to_wp_terms( $post_id, $kintone_data ){
 
 		$kintone_field_code_for_terms = get_option('kintone_to_wp_kintone_field_code_for_terms');
+			
+		foreach ($kintone_field_code_for_terms as $key => $kintone_field_code_for_term) {
 
-
-		if(!empty($kintone_field_code_for_terms['category']) || !empty($kintone_field_code_for_terms['post_tag']) ){
-
-			foreach ($kintone_field_code_for_terms as $key => $kintone_field_code_for_term) {
-
-				if(isset($kintone_data['record'][$kintone_field_code_for_term])) {
-					$terms = $kintone_data['record'][$kintone_field_code_for_term]['value'];
-
-					if (!is_array($terms)) {
-						$terms = array($terms);
-					}
-
-					$return = wp_set_object_terms($post_id, $terms, $key);
+			if(isset($kintone_data['record'][$kintone_field_code_for_term])) {
+				$terms = $kintone_data['record'][$kintone_field_code_for_term]['value'];
+				
+				if (!is_array($terms)) {
+					$terms = array($terms);
 				}
+
+				$return = wp_set_object_terms($post_id, $terms, $key);
 			}
 		}
 	}
+
 
 	private function get_update_kintone_data_by_id( $kintone_record_id ){
 
