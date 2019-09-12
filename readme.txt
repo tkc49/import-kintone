@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 5.1
 Tested up to: 5.1.1
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,7 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+* 1.5.1 - Fix Can not import subtable data.
 * 1.5.0 - Fix Custom Taxonomy can't sync if not set category or tags.
 * 1.4.0 - Add 'import_kintone_insert_post_status' filter hooks
 * 1.3.0 - Addition of CFS's corresponding processing
