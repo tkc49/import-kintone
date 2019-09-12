@@ -1,9 +1,23 @@
-#block-relate-kintone-and-wp {
+#block-relate-kintone-and-wp .repate-relate-kintone-and-wp {
 	background: #fff;
+	padding: 10px;
+	margin-bottom: 15px;
+}
+
+#block-relate-kintone-and-wp table th {
+	text-align: left;
 	padding: 10px;
 }
 
-#block-relate-kintone-and-wp th {
-	text-align: left;
-	padding: 10px;
+.button-primary.delete {
+	background: #dc3232;
+	border-color: #dc3232;
+	box-shadow: 0 1px 0 #dc3232;
+	color: #fff;
+	text-shadow: none;
+}
+
+.button-primary.delete:hover {
+	background: #ff3232;
+	border-color: #dc3232;
 }

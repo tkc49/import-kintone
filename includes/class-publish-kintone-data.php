@@ -47,11 +47,8 @@ class Publish_Kintone_Data {
 		require_once KINTONE_TO_WP_PATH . '/includes/class-sync.php';
 		$this->sync = new Sync();
 
-		if ( is_admin() ) {
-			require_once KINTONE_TO_WP_PATH . '/includes/class-admin.php';
-			new Admin();
-
-		}
+		require_once KINTONE_TO_WP_PATH . '/includes/class-admin.php';
+		new Admin();
 
 		/**
 		 * Hookの登録

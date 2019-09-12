@@ -36,12 +36,95 @@ class Admin {
 	 */
 	public function __construct() {
 
-		require_once KINTONE_TO_WP_PATH . '/includes/class-kintone-api.php';
-		require_once KINTONE_TO_WP_PATH . '/includes/class-sync.php';
-		$this->sync = new Sync();
+		if ( is_admin() ) {
+			require_once KINTONE_TO_WP_PATH . '/includes/class-kintone-api.php';
+			require_once KINTONE_TO_WP_PATH . '/includes/class-sync.php';
+			$this->sync = new Sync();
 
-		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
-		add_action( 'admin_init', array( $this, 'import_kintone_admin_init' ) );
+			add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+			add_action( 'admin_init', array( $this, 'import_kintone_admin_init' ) );
+		}
+
+		// WP Rest API.
+		add_action( 'rest_api_init', array( $this, 'add_import_kintone_admin_endpoint' ) );
+	}
+
+	/**
+	 * Publish Kintone Data 用のエンドポイントを追加する
+	 *
+	 * @return void.
+	 */
+	public function add_import_kintone_admin_endpoint() {
+
+		// Pluginに設定したkintone情報を返す.
+		register_rest_route(
+			'import-kintone/v1',
+			'setting-kintone-data',
+			array(
+				'methods'  => 'GET',
+				'callback' => array( $this, 'get_kintone_settings' ),
+			)
+		);
+		register_rest_route(
+			'import-kintone/v1',
+			'kintone/form/(?P<domain>[a-zA-Z0-9.-]+)/(?P<token>[a-zA-Z0-9-]+)/(?P<appid>[\d]+)',
+			array(
+				'methods'  => 'GET',
+				'callback' => array( $this, 'get_kintone_form' ),
+			)
+		);
+
+	}
+
+	/**
+	 * Pluginの設定情報をJSONで返す
+	 *
+	 * @param WP_REST_Request $request .
+	 *
+	 * @return string jsonデータ.
+	 */
+	public function get_kintone_settings( WP_REST_Request $request ) {
+
+		$import_kintone_informations = get_option( 'kintone_to_wp_informatvsions' );
+
+		if ( false === $import_kintone_informations ) {
+			$import_kintone_informations[0]['kintone_to_wp_kintone_api_token'] = get_option( 'kintone_to_wp_kintone_api_token' );
+			$import_kintone_informations[0]['kintone_to_wp_target_appid']      = get_option( 'kintone_to_wp_target_appid' );
+			$import_kintone_informations[0]['kintone_to_wp_reflect_post_type'] = get_option( 'kintone_to_wp_reflect_post_type' );
+		}
+
+		$response = new WP_REST_Response( $import_kintone_informations );
+		$response->set_status( 200 );
+//		$domain = ( empty( $_SERVER["HTTPS"] ) ? "http://" : "https://" ) . $_SERVER["HTTP_HOST"];
+		$domain = home_url( '' );
+		$response->header( 'Location', $domain );
+
+		return $response;
+	}
+
+	/**
+	 * Kintoneのフォーム情報を取得する.
+	 *
+	 * @param WP_REST_Request $request .
+	 *
+	 * @return string jsonデータ.
+	 */
+	public function get_kintone_form( WP_REST_Request $request ) {
+
+		$kintone_domain = $request['domain'];
+		$kintone_token  = $request['token'];
+		$kintone_app_id = $request['appid'];
+
+		$kintone_api  = new Kintone_API( $kintone_domain, $kintone_token, $kintone_app_id );
+		$kintone_data = $kintone_api->get_kintone_form();
+
+		$response = new WP_REST_Response( $kintone_data );
+		$response->set_status( 200 );
+		$domain = home_url( '' );
+		$response->header( 'Location', $domain );
+
+		return $response;
+
 	}
 
 	/**
@@ -58,26 +141,47 @@ class Admin {
 			date( 'YmdGis', filemtime( KINTONE_TO_WP_PATH . '/css/style.css' ) )
 		);
 
-		// jQuery.
-		wp_register_script( 'jQuery' );
-
 		// Vue.js.
 		wp_register_script(
-			'vue-js',
+			'vue',
 			KINTONE_TO_WP_URL . '/vendor/vue/vue.min.js',
 			array(),
 			date( 'YmdGis', filemtime( KINTONE_TO_WP_PATH . '/vendor/vue/vue.min.js' ) ),
+			true
+		);
+		// axios.js.
+		wp_register_script(
+			'axios',
+			KINTONE_TO_WP_URL . '/vendor/axios/axios.min.js',
+			array( 'vue' ),
+			date( 'YmdGis', filemtime( KINTONE_TO_WP_PATH . '/vendor/axios/axios.min.js' ) ),
 			true
 		);
 		// import-kintone-admin.js.
 		wp_register_script(
 			'import-kintone-admin-js',
 			KINTONE_TO_WP_URL . '/js/import-kintone-admin.js',
-			array( 'jQuery', 'vue-js' ),
+			array( 'vue', 'axios' ),
 			date( 'YmdGis', filemtime( KINTONE_TO_WP_PATH . '/js/import-kintone-admin.js' ) ),
 			true
 		);
-
+		wp_localize_script(
+			'import-kintone-admin-js',
+			'importKintoneVars',
+			[
+				'endpoint' => rest_url(),
+				'nonce'    => wp_create_nonce( 'wp_rest' ),
+			]
+		);
+		wp_localize_script(
+			'import-kintone-admin-js',
+			'importKintoneAjax',
+			array(
+				'ajax_url' => admin_url( 'admin-ajax.php' ),
+				'action'   => 'child_search',
+				'secure'   => wp_create_nonce( 'childsearch' ),
+			)
+		);
 	}
 
 	/**
@@ -120,13 +224,13 @@ class Admin {
 		/*
 		 * プラグイン管理画面のみで呼び出される。
 		 */
-		wp_enqueue_script(
-			'vue-js'
-		);
-		wp_enqueue_script(
-			'import-kintone-admin-js'
-		);
-		echo 'hoge';
+		wp_enqueue_script( 'jQuery' );
+
+		wp_enqueue_script( 'vue' );
+
+		wp_enqueue_script( 'axios' );
+
+		wp_enqueue_script( 'import-kintone-admin-js' );
 	}
 
 
@@ -220,26 +324,10 @@ class Admin {
 		echo '		<th scope="row"><label for="add_text">kintone domain</label></th>';
 		echo '		<td><input name="kintone_to_wp_kintone_url" type="text" id="kintone_to_wp_kintone_url" value="' . ( esc_attr( $kintone_url ) === '' ? '' : esc_attr( $kintone_url ) ) . '" class="regular-text" /></td>';
 		echo '	</tr>';
-		echo '	<tr valign="top">';
-		echo '		<th scope="row"><label for="add_text">API Token</label><br><span style="font-size:10px;">Permission: show record</span></th>';
-		echo '		<td><input name="kintone_to_wp_kintone_api_token" type="text" id="kintone_to_wp_kintone_api_token" value="' . ( esc_textarea( $api_token ) === '' ) ? '' : esc_textarea( $api_token ) . '" class="regular-text" /></td>';
-		echo '	</tr>';
-		echo '	<tr valign="top">';
-		echo '		<th scope="row"><label for="add_text">Reflect kintone to post_type</label></th>';
-		echo '		<td>';
-		echo '			kintone APP ID:<input name="kintone_to_wp_target_appid" type="text" id="kintone_to_wp_target_appid" value="' . ( esc_textarea( $target_appid ) === '' ? '' : esc_textarea( $target_appid ) ) . '" class="small-text" /> ->';
-		echo '			WordPress Post Type:<select name="kintone_to_wp_reflect_post_type">';
-		echo '				<option value=""></option>';
-		echo '				<option ' . selected( $reflect_post_type, 'post', false ) . ' value="post">post</option>';
-		$this->output_html_select_option_for_post_type( $reflect_post_type );
-		echo '			</select>';
-		echo '		</td>';
-		echo '	</tr>';
-		echo '	</table>';
-
-		echo '<p class="submit"><input type="submit" name="get_kintone_fields" class="button-primary" value="Get kintone fields" /></p>';
-
+		echo '</table>';
+		echo 'Please set this URL to kintone\'s WEBHOOK-><strong>' . esc_url( site_url( '/wp-admin/admin-ajax.php?action=kintone_to_wp_start' ) ) . '</strong><br><span style="font-size:10px;">Permission: post record, update record, delete record</span>';
 		echo '</form>';
+		echo '<br/>';
 
 		$disp_data        = '';
 		$old_kintone_data = get_option( 'kintone_to_wp_kintone_app_form_data' );
@@ -267,15 +355,35 @@ class Admin {
 
 			wp_nonce_field( $this->nonce, '_wpnonce' );
 
-			echo 'Please set this URL to kintone\'s WEBHOOK-><strong>' . esc_url( site_url( '/wp-admin/admin-ajax.php?action=kintone_to_wp_start' ) ) . '</strong><br><span style="font-size:10px;">Permission: post record, update record, delete record</span>';
-			echo '<br/>';
-			echo '<br/>';
 			echo '<div id="block-relate-kintone-and-wp">';
+			echo '<div class="repate-relate-kintone-and-wp" v-for="(settingDatum, index) in settingData">';
+
+			echo '<table>';
+			echo '	<tr valign="top">';
+			echo '		<th scope="row"><label for="add_text">API Token</label><br><span style="font-size:10px;">Permission: show record</span></th>';
+			echo '		<td>';
+			echo '			<input name="kintone_to_wp_kintone_api_token" type="text" id="kintone_to_wp_kintone_api_token" value="' . ( esc_textarea( $api_token ) === '' ? '' : esc_textarea( $api_token ) ) . '" class="regular-text" />';
+			echo '		</td>';
+			echo '	</tr>';
+			echo '	<tr valign="top">';
+			echo '		<th scope="row"><label for="add_text">Reflect kintone to post_type</label></th>';
+			echo '		<td>';
+			echo '			kintone APP ID:<input name="kintone_to_wp_target_appid" type="text" id="kintone_to_wp_target_appid" value="' . ( esc_textarea( $target_appid ) === '' ? '' : esc_textarea( $target_appid ) ) . '" class="small-text" /> ->';
+			echo '			WordPress Post Type:<select name="kintone_to_wp_reflect_post_type">';
+			echo '				<option value=""></option>';
+			echo '				<option ' . selected( $reflect_post_type, 'post', false ) . ' value="post">post</option>';
+			$this->output_html_select_option_for_post_type( $reflect_post_type );
+			echo '			</select>';
+			echo '		</td>';
+			echo '	</tr>';
+			echo '</table>';
+			echo '<p class="submit"><button type="button" class="" v-on:click="get_kintone_fields(index)" title="Get kintone fields">Get kintone fields</button></p>';
+
 			echo '	<table>';
 			echo '	<tr valign="top">';
 			echo '		<th scope="row"><label for="add_text">Select Post title</label></th>';
 			echo '		<td>';
-			echo '			<select name="kintone_to_wp_kintone_field_code_for_post_title">';
+			echo '			<select v-model="selected" name="kintone_to_wp_kintone_field_code_for_post_title">';
 			$this->output_html_select_option_for_post_title( $disp_data );
 			echo '			</select>';
 			echo '		</td>';
@@ -293,8 +401,10 @@ class Admin {
 			echo '		</td>';
 			echo '	</tr>';
 			echo '</table>';
+			echo '<button type="button" class="button-primary" v-on:click="addRow(index)">追加</button>';
+			echo '<button type="button" class="button-primary delete" v-if="index !== 0" v-on:click="deleteRow(index)">削除</button>';
 			echo '</div>';
-
+			echo '</div>';
 			echo '<p class="submit"><input type="submit" name="save" class="button-primary" value="save" /></p>';
 			echo '<p class="submit"><input type="submit" name="bulk_update" class="button-primary" value="Bulk Update" /></p>';
 			echo '</form>';
@@ -474,16 +584,13 @@ class Admin {
 	 */
 	private function output_html_select_option_for_post_title( $kintone_app_form_data ) {
 
-		$kintone_field_code_for_post_title = get_option( 'kintone_to_wp_kintone_field_code_for_post_title' );
+		echo '<option v-for="kintoneField in kintoneFields" v-bind:value="kintoneField.code" v-if="kintoneField.code !== \'\'">';
+		echo '{{ kintoneField.label }}({{ kintoneField.code }})';
+		echo '</option>';
 
-		echo '<option ' . selected( '', $kintone_field_code_for_post_title, false ) . ' value=""></option>';
+//		POST TILEの保存.
+//		$kintone_field_code_for_post_title = get_option( 'kintone_to_wp_kintone_field_code_for_post_title' );
 
-		foreach ( $kintone_app_form_data['properties'] as $kintone_form_value ) {
-
-			if ( array_key_exists( 'code', $kintone_form_value ) ) {
-				echo '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_post_title, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')</option>';
-			}
-		}
 
 	}
 
