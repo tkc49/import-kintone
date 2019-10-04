@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:
  * Description: The data of kintone can be reflected on WordPress.
- * Version:     1.5.1
+ * Version:     1.6.0
  * Author:      Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:     GPLv2
@@ -133,9 +133,14 @@ class KintoneToWP {
 				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_terms'] ) && is_array( $_POST['kintone_to_wp_kintone_field_code_for_terms'] ) ) {
 					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] = $_POST['kintone_to_wp_kintone_field_code_for_terms'];
 				}
+				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_featured_image'] ) ) {
+					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_featured_image'] = sanitize_text_field( $_POST['kintone_to_wp_kintone_field_code_for_featured_image'] );
+				}
+
 				if ( isset( $_POST['kintone_to_wp_setting_custom_fields'] ) && is_array( $_POST['kintone_to_wp_setting_custom_fields'] ) ) {
 					$kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields'] = $_POST['kintone_to_wp_setting_custom_fields'];
 				}
+
 
 				$this->update_kintone_app_fields_code_for_wp( $kintone_app_fields_code_for_wp );
 
@@ -234,6 +239,14 @@ class KintoneToWP {
 			echo '		<th scope="row"><label for="add_text">Select Term</label></th>';
 			echo '		<td>';
 			echo $this->get_html_taxonomy_form_select( $disp_data, $reflect_post_type );
+			echo '		</td>';
+			echo '	</tr>';
+			echo '	<tr valign="top">';
+			echo '		<th scope="row"><label for="add_text">Select Featured image</label></th>';
+			echo '		<td>';
+			echo '			<select name="kintone_to_wp_kintone_field_code_for_featured_image">';
+			echo $this->get_html_featured_image_form_select_option( $disp_data );
+			echo '			</select>';
 			echo '		</td>';
 			echo '	</tr>';
 			echo '	<tr valign="top">';
@@ -352,6 +365,12 @@ class KintoneToWP {
 			update_option( 'kintone_to_wp_setting_custom_fields', $kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields'] );
 		}
 
+		if ( empty( $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_featured_image'] ) ) {
+			delete_option( 'kintone_to_wp_kintone_field_code_for_featured_image' );
+		} else {
+			update_option( 'kintone_to_wp_kintone_field_code_for_featured_image', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_featured_image'] );
+		}
+
 	}
 
 
@@ -451,6 +470,24 @@ class KintoneToWP {
 
 		return $html_option;
 
+	}
+
+	private function get_html_featured_image_form_select_option( $kintone_app_form_data ) {
+
+		$html_select_featured_image            = '';
+		$kintone_field_code_for_featured_image = get_option( 'kintone_to_wp_kintone_field_code_for_featured_image' );
+
+		$html_select_featured_image .= '<option ' . selected( '', $kintone_field_code_for_featured_image, false ) . ' value=""></option>';
+
+		foreach ( $kintone_app_form_data['properties'] as $kintone_form_value ) {
+
+			if ( array_key_exists( 'code', $kintone_form_value ) ) {
+				$html_select_featured_image .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_featured_image, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
+			}
+
+		}
+
+		return $html_select_featured_image;
 	}
 
 	private function get_html_post_title_form_select_option( $kintone_app_form_data ) {
@@ -585,6 +622,7 @@ class KintoneToWP {
 				$this->update_kintone_data_to_wp_post( $the_query->post->ID, $kintoen_data );
 				$this->update_kintone_data_to_wp_post_meta( $the_query->post->ID, $kintoen_data );
 				$this->update_kintone_data_to_wp_terms( $the_query->post->ID, $kintoen_data );
+				$this->update_kintone_data_to_wp_post_featured_image( $the_query->post->ID, $kintoen_data );
 			} elseif ( $kintoen_data['kintone_to_wp_status'] == 'delete' ) {
 				wp_delete_post( $the_query->post->ID );
 			}
@@ -596,8 +634,26 @@ class KintoneToWP {
 				$post_id = $this->insert_kintone_data_to_wp_post( $kintoen_data );
 				$this->update_kintone_data_to_wp_post_meta( $post_id, $kintoen_data );
 				$this->update_kintone_data_to_wp_terms( $post_id, $kintoen_data );
+				$this->update_kintone_data_to_wp_post_featured_image( $post_id, $kintoen_data );
 			}
 
+		}
+
+	}
+
+	private function update_kintone_data_to_wp_post_featured_image( $post_id, $kintone_data ) {
+
+		$setting_kintone_field_code_for_featured_image = '';
+		if ( array_key_exists( get_option( 'kintone_to_wp_kintone_field_code_for_featured_image' ), $kintone_data['record'] ) ) {
+			$setting_kintone_field_code_for_featured_image = get_option( 'kintone_to_wp_kintone_field_code_for_featured_image' );
+		}
+
+		if ( $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['type'] == 'FILE' ) {
+			if ( ! empty( $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['value'] ) ) {
+				$this->update_kintone_temp_file_to_meta( $post_id, $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['value'][0], '', true );
+			} else {
+				$this->delete_kintone_temp_file( $post_id, '', true );
+			}
 		}
 
 	}
@@ -797,20 +853,28 @@ class KintoneToWP {
 
 	}
 
-	private function delete_kintone_temp_file( $post_id, $kintone_fieldcode ) {
+	private function delete_kintone_temp_file( $post_id, $kintone_fieldcode, $featured_image_flag = false ) {
 
-		$attachment_id = get_post_meta( $post_id, $kintone_fieldcode, true );
-		if ( ! empty( $attachment_id ) ) {
+		if ( $featured_image_flag ) {
+			$attachment_id = get_post_thumbnail_id( $post_id );
+			if ( $attachment_id ) {
+				wp_delete_attachment( $attachment_id );
+				delete_post_thumbnail( $post_id );
+			}
+		} else {
+			if ( $kintone_fieldcode ) {
+				$attachment_id = get_post_meta( $post_id, $kintone_fieldcode, true );
+				if ( ! empty( $attachment_id ) ) {
 
-			wp_delete_attachment( $attachment_id );
-			delete_post_meta( $post_id, $kintone_fieldcode, $attachment_id );
+					wp_delete_attachment( $attachment_id );
+					delete_post_meta( $post_id, $kintone_fieldcode, $attachment_id );
 
+				}
+			}
 		}
-
-
 	}
 
-	private function update_kintone_temp_file_to_meta( $post_id, $temp_base_data, $post_meta_name ) {
+	private function update_kintone_temp_file_to_meta( $post_id, $temp_base_data, $post_meta_name, $featured_image_flag = false ) {
 
 
 		$file_data = $this->get_kintone_temp_file( $temp_base_data['fileKey'] );
@@ -855,29 +919,29 @@ class KintoneToWP {
 			'post_parent'    => $post_id,
 		);
 
-		$aid           = wp_insert_attachment( $attachment, $file['file'], $post_id );
-		$attach_data   = wp_generate_attachment_metadata( $aid, $file['file'] );
-		$attachment_id = get_post_meta( $post_id, $post_meta_name, true );
-		if ( ! empty( $attachment_id ) ) {
-			wp_delete_attachment( $attachment_id );  /*Delete previous image画像が増えていかないように*/
+		$aid         = wp_insert_attachment( $attachment, $file['file'], $post_id );
+		$attach_data = wp_generate_attachment_metadata( $aid, $file['file'] );
+
+		if ( $featured_image_flag ) {
+
+			set_post_thumbnail( $post_id, $aid );
+
+		} else {
+			if ( $post_meta_name ) {
+				$attachment_id = get_post_meta( $post_id, $post_meta_name, true );
+				if ( ! empty( $attachment_id ) ) {
+					wp_delete_attachment( $attachment_id );  /*Delete previous image画像が増えていかないように*/
+				}
+				update_post_meta( $post_id, $post_meta_name, $aid );
+			}
 		}
-
-		update_post_meta( $post_id, $post_meta_name, $aid );
-
-		// if( "post_thumbnail" == $post_meta_name ){
-		// 	update_post_meta( $post_id, '_thumbnail_id', $aid );
-		// }else{
-		// 	update_post_meta( $post_id, $post_meta_name, $aid );  /*Save the attachment id in meta data適当なフィールド名で！*/
-		// }
 
 		if ( ! is_wp_error( $aid ) ) {
 			wp_update_attachment_metadata( $aid, $attach_data );  /*If there is no error, update the metadata of the newly uploaded image*/
 		}
 
-		// ディレクトリー削除
+		// ディレクトリー削除.
 		@unlink( $tmp_dir . '/' . $tmp_filename );
-		//@rmdir( dirname( $tmp_dir.'/'.$tmp_filename ) ); // remove parent dir if it's removable (empty).
-
 
 	}
 }
