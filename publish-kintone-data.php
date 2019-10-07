@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:
  * Description: The data of kintone can be reflected on WordPress.
- * Version:     1.6.0
+ * Version:     1.6.1
  * Author:      Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:     GPLv2
@@ -442,7 +442,12 @@ class KintoneToWP {
 
 				} else {
 
-					$html_setting_custom_fields .= '<th>' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</th><td><input type="text" name="kintone_to_wp_setting_custom_fields[' . esc_attr( $kintone_form_value['code'] ) . ']" value="' . esc_attr( $input_val ) . '" class="regular-text" /></td>';
+					$label = '';
+					if ( isset( $kintone_form_value['label'] ) ) {
+						$label = $kintone_form_value['label'];
+					}
+
+					$html_setting_custom_fields .= '<th>' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</th><td><input type="text" name="kintone_to_wp_setting_custom_fields[' . esc_attr( $kintone_form_value['code'] ) . ']" value="' . esc_attr( $input_val ) . '" class="regular-text" /></td>';
 
 				}
 				$html_setting_custom_fields .= '</tr>';
@@ -482,7 +487,13 @@ class KintoneToWP {
 		foreach ( $kintone_app_form_data['properties'] as $kintone_form_value ) {
 
 			if ( array_key_exists( 'code', $kintone_form_value ) ) {
-				$html_select_featured_image .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_featured_image, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
+
+				$label = '';
+				if ( isset( $kintone_form_value['label'] ) ) {
+					$label = $kintone_form_value['label'];
+				}
+
+				$html_select_featured_image .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_featured_image, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
 			}
 
 		}
@@ -500,7 +511,13 @@ class KintoneToWP {
 		foreach ( $kintone_app_form_data['properties'] as $kintone_form_value ) {
 
 			if ( array_key_exists( 'code', $kintone_form_value ) ) {
-				$html_select_post_title .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_post_title, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
+
+				$label = '';
+				if ( isset( $kintone_form_value['label'] ) ) {
+					$label = $kintone_form_value['label'];
+				}
+
+				$html_select_post_title .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_post_title, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
 			}
 
 		}
@@ -643,19 +660,20 @@ class KintoneToWP {
 
 	private function update_kintone_data_to_wp_post_featured_image( $post_id, $kintone_data ) {
 
-		$setting_kintone_field_code_for_featured_image = '';
-		if ( array_key_exists( get_option( 'kintone_to_wp_kintone_field_code_for_featured_image' ), $kintone_data['record'] ) ) {
-			$setting_kintone_field_code_for_featured_image = get_option( 'kintone_to_wp_kintone_field_code_for_featured_image' );
-		}
+		$kintone_to_wp_kintone_field_code_for_featured_image = get_option( 'kintone_to_wp_kintone_field_code_for_featured_image' );
+		if ( $kintone_to_wp_kintone_field_code_for_featured_image ) {
+			if ( array_key_exists( $kintone_to_wp_kintone_field_code_for_featured_image, $kintone_data['record'] ) ) {
+				$setting_kintone_field_code_for_featured_image = get_option( 'kintone_to_wp_kintone_field_code_for_featured_image' );
 
-		if ( $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['type'] == 'FILE' ) {
-			if ( ! empty( $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['value'] ) ) {
-				$this->update_kintone_temp_file_to_meta( $post_id, $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['value'][0], '', true );
-			} else {
-				$this->delete_kintone_temp_file( $post_id, '', true );
+				if ( 'FILE' === $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['type'] ) {
+					if ( ! empty( $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['value'] ) ) {
+						$this->update_kintone_temp_file_to_meta( $post_id, $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['value'][0], '', true );
+					} else {
+						$this->delete_kintone_temp_file( $post_id, '', true );
+					}
+				}
 			}
 		}
-
 	}
 
 	private function insert_kintone_data_to_wp_post( $kintoen_data ) {
@@ -768,16 +786,18 @@ class KintoneToWP {
 
 		$kintone_field_code_for_terms = get_option( 'kintone_to_wp_kintone_field_code_for_terms' );
 
-		foreach ( $kintone_field_code_for_terms as $key => $kintone_field_code_for_term ) {
+		if ( ! empty( $kintone_field_code_for_terms ) ) {
+			foreach ( $kintone_field_code_for_terms as $key => $kintone_field_code_for_term ) {
 
-			if ( isset( $kintone_data['record'][ $kintone_field_code_for_term ] ) ) {
-				$terms = $kintone_data['record'][ $kintone_field_code_for_term ]['value'];
+				if ( isset( $kintone_data['record'][ $kintone_field_code_for_term ] ) ) {
+					$terms = $kintone_data['record'][ $kintone_field_code_for_term ]['value'];
 
-				if ( ! is_array( $terms ) ) {
-					$terms = array( $terms );
+					if ( ! is_array( $terms ) ) {
+						$terms = array( $terms );
+					}
+
+					wp_set_object_terms( $post_id, $terms, $key );
 				}
-
-				$return = wp_set_object_terms( $post_id, $terms, $key );
 			}
 		}
 	}
