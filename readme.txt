@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 5.1.1
-Stable tag: 1.6.1
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,7 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+* 1.7.0 - Add function to Post content.
 * 1.6.1 - Fixed notice & warnign error.
 * 1.6.0 - Add function to Featured image.
 * 1.5.1 - Fix Can not import subtable data.
