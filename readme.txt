@@ -59,6 +59,7 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+* 1.7.2 - Fix can not publish post when use kintone appcode.
 * 1.7.1 - Fix can not save taxonomy when selected custom post type.
 * 1.7.0 - Add function to Post content.
 * 1.6.1 - Fixed notice & warnign error.
