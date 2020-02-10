@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:
  * Description: The data of kintone can be reflected on WordPress.
- * Version:     1.7.2
+ * Version:     1.7.3
  * Author:      Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:     GPLv2
@@ -635,7 +635,7 @@ class KintoneToWP {
 		if ( is_wp_error( $kintone_data ) ) {
 
 			if ( $update_kintone_data['type'] == 'DELETE_RECORD' && $kintone_data->get_error_code() == 'GAIA_RE01' ) {
-				$this->delete( $update_kintone_data['recordId'] );
+				$this->delete( $update_kintone_data['recordId'], $update_kintone_data );
 			}
 		} else {
 
@@ -646,7 +646,7 @@ class KintoneToWP {
 
 	}
 
-	private function delete( $record_id ) {
+	private function delete( $record_id, $update_kintone_data ) {
 
 		$args      = array(
 			'post_type'   => get_option( 'kintone_to_wp_reflect_post_type' ),
@@ -657,8 +657,24 @@ class KintoneToWP {
 		$the_query = new WP_Query( $args );
 		if ( $the_query->have_posts() ) {
 			wp_delete_post( $the_query->post->ID );
-		}
+		} else {
+			// 削除できなかったらアプリコード付きで削除する
+			$url              = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/app.json?id=' . $update_kintone_data['app']['id'];
+			$kintone_app_data = $this->kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
 
+			if ( $kintone_app_data['code'] ) {
+				$args      = array(
+					'post_type'   => get_option( 'kintone_to_wp_reflect_post_type' ),
+					'meta_key'    => 'kintone_record_id',
+					'meta_value'  => $kintone_app_data['code'] . '-' . $record_id,
+					'post_status' => array( 'publish', 'pending', 'draft', 'future', 'private' )
+				);
+				$the_query = new WP_Query( $args );
+				if ( $the_query->have_posts() ) {
+					wp_delete_post( $the_query->post->ID );
+				}
+			}
+		}
 	}
 
 	private function get_kintone_id_without_appcode( $id ) {
@@ -762,7 +778,7 @@ class KintoneToWP {
 
 		$post_content = '';
 		if ( isset( $kintoen_data['record'][ $field_code_for_post_contents ] ) && $kintoen_data['record'][ $field_code_for_post_contents ]['value'] ) {
-			$post_content = $kintoen_data['record'][ $field_code_for_post_title ]['value'];
+			$post_content = $kintoen_data['record'][ $field_code_for_post_contents ]['value'];
 		}
 
 		$post_id = wp_insert_post(
