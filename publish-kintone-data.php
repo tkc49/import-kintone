@@ -710,37 +710,39 @@ class KintoneToWP {
 
 	private function sync( $kintoen_data ) {
 
-		$kintone_record_number = $this->get_kintone_record_number( $kintoen_data );
+		if ( ! empty( $kintoen_data ) ) {
+			$kintone_record_number = $this->get_kintone_record_number( $kintoen_data );
 
-		$args      = array(
-			'post_type'   => get_option( 'kintone_to_wp_reflect_post_type' ),
-			'meta_key'    => 'kintone_record_id',
-			'meta_value'  => $kintone_record_number,
-			'post_status' => array( 'publish', 'pending', 'draft', 'future', 'private' )
-		);
-		$the_query = new WP_Query( $args );
-		if ( $the_query->have_posts() ) {
+			$args      = array(
+				'post_type'   => get_option( 'kintone_to_wp_reflect_post_type' ),
+				'meta_key'    => 'kintone_record_id',
+				'meta_value'  => $kintone_record_number,
+				'post_status' => array( 'publish', 'pending', 'draft', 'future', 'private' )
+			);
+			$the_query = new WP_Query( $args );
+			if ( $the_query->have_posts() ) {
 
-			// WordPressにデータが存在するので、UPDATE or DELETE の処理をする
-			if ( $kintoen_data['kintone_to_wp_status'] == 'normal' ) {
-				$this->update_kintone_data_to_wp_post( $the_query->post->ID, $kintoen_data );
-				$this->update_kintone_data_to_wp_post_meta( $the_query->post->ID, $kintoen_data );
-				$this->update_kintone_data_to_wp_terms( $the_query->post->ID, $kintoen_data );
-				$this->update_kintone_data_to_wp_post_featured_image( $the_query->post->ID, $kintoen_data );
-			} elseif ( $kintoen_data['kintone_to_wp_status'] == 'delete' ) {
-				wp_delete_post( $the_query->post->ID );
+				// WordPressにデータが存在するので、UPDATE or DELETE の処理をする
+				if ( $kintoen_data['kintone_to_wp_status'] == 'normal' ) {
+					$this->update_kintone_data_to_wp_post( $the_query->post->ID, $kintoen_data );
+					$this->update_kintone_data_to_wp_post_meta( $the_query->post->ID, $kintoen_data );
+					$this->update_kintone_data_to_wp_terms( $the_query->post->ID, $kintoen_data );
+					$this->update_kintone_data_to_wp_post_featured_image( $the_query->post->ID, $kintoen_data );
+				} elseif ( $kintoen_data['kintone_to_wp_status'] == 'delete' ) {
+					wp_delete_post( $the_query->post->ID );
+				}
+
+			} else {
+
+				// WordPressにデータが存在しないので、INSERT 処理をする
+				if ( $kintoen_data['kintone_to_wp_status'] == 'normal' ) {
+					$post_id = $this->insert_kintone_data_to_wp_post( $kintoen_data );
+					$this->update_kintone_data_to_wp_post_meta( $post_id, $kintoen_data );
+					$this->update_kintone_data_to_wp_terms( $post_id, $kintoen_data );
+					$this->update_kintone_data_to_wp_post_featured_image( $post_id, $kintoen_data );
+				}
+
 			}
-
-		} else {
-
-			// WordPressにデータが存在しないので、INSERT 処理をする
-			if ( $kintoen_data['kintone_to_wp_status'] == 'normal' ) {
-				$post_id = $this->insert_kintone_data_to_wp_post( $kintoen_data );
-				$this->update_kintone_data_to_wp_post_meta( $post_id, $kintoen_data );
-				$this->update_kintone_data_to_wp_terms( $post_id, $kintoen_data );
-				$this->update_kintone_data_to_wp_post_featured_image( $post_id, $kintoen_data );
-			}
-
 		}
 
 	}
