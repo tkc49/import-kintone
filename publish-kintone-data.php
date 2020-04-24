@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:
  * Description: The data of kintone can be reflected on WordPress.
- * Version:     1.7.4
+ * Version:     1.8.1
  * Author:      Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:     GPLv2
@@ -710,6 +710,9 @@ class KintoneToWP {
 
 	private function sync( $kintoen_data ) {
 
+		$status  = '';
+		$post_id = '';
+
 		if ( ! empty( $kintoen_data ) ) {
 			$kintone_record_number = $this->get_kintone_record_number( $kintoen_data );
 
@@ -728,8 +731,16 @@ class KintoneToWP {
 					$this->update_kintone_data_to_wp_post_meta( $the_query->post->ID, $kintoen_data );
 					$this->update_kintone_data_to_wp_terms( $the_query->post->ID, $kintoen_data );
 					$this->update_kintone_data_to_wp_post_featured_image( $the_query->post->ID, $kintoen_data );
+
+					$status  = 'update';
+					$post_id = $the_query->post->ID;
+
 				} elseif ( $kintoen_data['kintone_to_wp_status'] == 'delete' ) {
 					wp_delete_post( $the_query->post->ID );
+
+					$status  = 'delete';
+					$post_id = $the_query->post->ID;
+
 				}
 
 			} else {
@@ -740,9 +751,13 @@ class KintoneToWP {
 					$this->update_kintone_data_to_wp_post_meta( $post_id, $kintoen_data );
 					$this->update_kintone_data_to_wp_terms( $post_id, $kintoen_data );
 					$this->update_kintone_data_to_wp_post_featured_image( $post_id, $kintoen_data );
+
+					$status = 'insert';
 				}
 
 			}
+
+			do_action( 'after_insert_or_update_to_post', $post_id, $status );
 		}
 
 	}
