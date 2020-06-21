@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:
  * Description: The data of kintone can be reflected on WordPress.
- * Version:     1.8.1
+ * Version:     1.8.3
  * Author:      Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:     GPLv2
@@ -568,10 +568,7 @@ class KintoneToWP {
 
 		// Category
 		$terms = get_taxonomies(
-			array(
-				'object_type' => array( $reflect_post_type ),
-				'show_ui'     => true,
-			),
+			array(),
 			'objects'
 		);
 
@@ -579,29 +576,32 @@ class KintoneToWP {
 
 		foreach ( $terms as $key => $term ) {
 
-			$html_select_term             .= $term->label . '-><select name="kintone_to_wp_kintone_field_code_for_terms[' . $term->name . ']">';
-			$kintone_field_code_for_terms = get_option( 'kintone_to_wp_kintone_field_code_for_terms' );
+			if ( in_array( $reflect_post_type, $term->object_type ) ) {
 
-			$html_select_term .= '<option value=""></option>';
+				$html_select_term             .= $term->label . '-><select name="kintone_to_wp_kintone_field_code_for_terms[' . $term->name . ']">';
+				$kintone_field_code_for_terms = get_option( 'kintone_to_wp_kintone_field_code_for_terms' );
 
-			foreach ( $kintone_app_form_data['properties'] as $kintone_form_value ) {
+				$html_select_term .= '<option value=""></option>';
 
-				$input_val = '';
+				foreach ( $kintone_app_form_data['properties'] as $kintone_form_value ) {
 
-				if ( is_array( $kintone_field_code_for_terms ) ) {
-					foreach ( $kintone_field_code_for_terms as $key => $kintone_field_code_for_term ) {
-						if ( $term->name == $key ) {
-							$input_val = $kintone_field_code_for_term;
+					$input_val = '';
+
+					if ( is_array( $kintone_field_code_for_terms ) ) {
+						foreach ( $kintone_field_code_for_terms as $key => $kintone_field_code_for_term ) {
+							if ( $term->name == $key ) {
+								$input_val = $kintone_field_code_for_term;
+							}
 						}
+					}
+
+					if ( array_key_exists( 'code', $kintone_form_value ) ) {
+						$html_select_term .= '<option ' . selected( $kintone_form_value['code'], $input_val, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
 					}
 				}
 
-				if ( array_key_exists( 'code', $kintone_form_value ) ) {
-					$html_select_term .= '<option ' . selected( $kintone_form_value['code'], $input_val, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
-				}
+				$html_select_term .= '</select><br/>';
 			}
-
-			$html_select_term .= '</select><br/>';
 		}
 
 		return $html_select_term;
@@ -757,7 +757,7 @@ class KintoneToWP {
 
 			}
 
-			do_action( 'after_insert_or_update_to_post', $post_id, $status );
+			do_action( 'after_insert_or_update_to_post', $post_id, $kintoen_data, $status );
 		}
 
 	}
