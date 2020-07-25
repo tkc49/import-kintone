@@ -138,6 +138,11 @@ class Sync {
 					update_post_meta( $post_id, $kintone_fieldcode . '_code', $kintone_data['record'][ $key ]['value']['code'] );
 					update_post_meta( $post_id, $kintone_fieldcode . '_name', $kintone_data['record'][ $key ]['value']['name'] );
 
+				} elseif ( $kintone_data['record'][ $key ]['type'] == 'SUBTABLE' ) {
+
+					update_post_meta( $post_id, $kintone_fieldcode, $kintone_data['record'][ $key ]['value'] );
+
+
 				} else {
 					$record_data = $this->make_kintone_array_to_string( $kintone_data['record'][ $key ]['value'] );
 
