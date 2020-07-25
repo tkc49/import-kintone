@@ -56,6 +56,8 @@ class Sync {
 				$this->update_kintone_data_to_wp_post( $the_query->post->ID, $kintoen_data );
 				$this->update_kintone_data_to_wp_post_meta( $the_query->post->ID, $kintoen_data );
 				$this->update_kintone_data_to_wp_terms( $the_query->post->ID, $kintoen_data );
+				$this->update_kintone_data_to_wp_post_featured_image( $the_query->post->ID, $kintoen_data );
+
 			} elseif ( 'delete' === $kintoen_data['kintone_to_wp_status'] ) {
 				wp_delete_post( $the_query->post->ID );
 			}
@@ -66,6 +68,7 @@ class Sync {
 				$post_id = $this->insert_kintone_data_to_wp_post( $kintoen_data );
 				$this->update_kintone_data_to_wp_post_meta( $post_id, $kintoen_data );
 				$this->update_kintone_data_to_wp_terms( $post_id, $kintoen_data );
+				$this->update_kintone_data_to_wp_post_featured_image( $post_id, $kintoen_data );
 			}
 		}
 	}
@@ -173,14 +176,26 @@ class Sync {
 	 *
 	 * @return void
 	 */
-	private function delete_kintone_temp_file( $post_id, $kintone_fieldcode ) {
+	private function delete_kintone_temp_file( $post_id, $kintone_fieldcode, $featured_image_flag = false ) {
+
 
 		$attachment_id = get_post_meta( $post_id, $kintone_fieldcode, true );
-		if ( ! empty( $attachment_id ) ) {
+		if ( $featured_image_flag ) {
+			$attachment_id = get_post_thumbnail_id( $post_id );
+			if ( $attachment_id ) {
+				wp_delete_attachment( $attachment_id );
+				delete_post_thumbnail( $post_id );
+			}
+		} else {
+			if ( $kintone_fieldcode ) {
+				$attachment_id = get_post_meta( $post_id, $kintone_fieldcode, true );
+				if ( ! empty( $attachment_id ) ) {
 
-			wp_delete_attachment( $attachment_id );
-			delete_post_meta( $post_id, $kintone_fieldcode, $attachment_id );
+					wp_delete_attachment( $attachment_id );
+					delete_post_meta( $post_id, $kintone_fieldcode, $attachment_id );
 
+				}
+			}
 		}
 
 	}
@@ -230,6 +245,24 @@ class Sync {
 		}
 	}
 
+	private function update_kintone_data_to_wp_post_featured_image( $post_id, $kintone_data ) {
+
+		$setting_kintone_field_code_for_featured_image = '';
+		if ( array_key_exists( get_option( 'kintone_to_wp_kintone_field_code_for_featured_image' ), $kintone_data['record'] ) ) {
+			$setting_kintone_field_code_for_featured_image = get_option( 'kintone_to_wp_kintone_field_code_for_featured_image' );
+		}
+
+		if ( $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['type'] == 'FILE' ) {
+			if ( ! empty( $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['value'] ) ) {
+				$this->update_kintone_temp_file_to_meta( $post_id, $kintone_data['record'][ $setting_kintone_field_code_for_featured_image ]['value'][0], '', true );
+			} else {
+				$this->delete_kintone_temp_file( $post_id, '', true );
+			}
+		}
+
+	}
+
+
 	/**
 	 * 記事を作成する.
 	 *
@@ -265,7 +298,8 @@ class Sync {
 	 *
 	 * @return void
 	 */
-	private function update_kintone_temp_file_to_meta( $post_id, $temp_base_data, $post_meta_name ) {
+	private function update_kintone_temp_file_to_meta( $post_id, $temp_base_data, $post_meta_name, $featured_image_flag = false ) {
+
 
 		$file_data = $this->kintone_api->get_attached_file( $temp_base_data['fileKey'] );
 
@@ -309,14 +343,22 @@ class Sync {
 			'post_parent'    => $post_id,
 		);
 
-		$aid           = wp_insert_attachment( $attachment, $file['file'], $post_id );
-		$attach_data   = wp_generate_attachment_metadata( $aid, $file['file'] );
-		$attachment_id = get_post_meta( $post_id, $post_meta_name, true );
-		if ( ! empty( $attachment_id ) ) {
-			wp_delete_attachment( $attachment_id );  /*Delete previous image画像が増えていかないように*/
-		}
+		$aid         = wp_insert_attachment( $attachment, $file['file'], $post_id );
+		$attach_data = wp_generate_attachment_metadata( $aid, $file['file'] );
 
-		update_post_meta( $post_id, $post_meta_name, $aid );
+		if ( $featured_image_flag ) {
+
+			set_post_thumbnail( $post_id, $aid );
+
+		} else {
+			if ( $post_meta_name ) {
+				$attachment_id = get_post_meta( $post_id, $post_meta_name, true );
+				if ( ! empty( $attachment_id ) ) {
+					wp_delete_attachment( $attachment_id );  /*Delete previous image画像が増えていかないように*/
+				}
+				update_post_meta( $post_id, $post_meta_name, $aid );
+			}
+		}
 
 		if ( ! is_wp_error( $aid ) ) {
 			wp_update_attachment_metadata( $aid, $attach_data );  /*If there is no error, update the metadata of the newly uploaded image*/

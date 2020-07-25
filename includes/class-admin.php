@@ -293,6 +293,9 @@ class Admin {
 				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_terms'] ) && is_array( $_POST['kintone_to_wp_kintone_field_code_for_terms'] ) ) {
 					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] = array_map( 'sanitize_text_field', wp_unslash( $_POST['kintone_to_wp_kintone_field_code_for_terms'] ) );
 				}
+				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_featured_image'] ) ) {
+					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_featured_image'] = sanitize_text_field( $_POST['kintone_to_wp_kintone_field_code_for_featured_image'] );
+				}
 				if ( isset( $_POST['kintone_to_wp_setting_custom_fields'] ) && is_array( $_POST['kintone_to_wp_setting_custom_fields'] ) ) {
 					$kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields'] = array_map( 'sanitize_text_field', wp_unslash( $_POST['kintone_to_wp_setting_custom_fields'] ) );
 				}
@@ -392,6 +395,14 @@ class Admin {
 			echo '		<th scope="row"><label for="add_text">Select Term</label></th>';
 			echo '		<td>';
 			$this->output_html_selectbox_for_taxonomy( $disp_data, $reflect_post_type );
+			echo '		</td>';
+			echo '	</tr>';
+			echo '	<tr valign="top">';
+			echo '		<th scope="row"><label for="add_text">Select Featured image</label></th>';
+			echo '		<td>';
+			echo '			<select name="kintone_to_wp_kintone_field_code_for_featured_image">';
+			echo $this->get_html_featured_image_form_select_option( $disp_data );
+			echo '			</select>';
 			echo '		</td>';
 			echo '	</tr>';
 			echo '	<tr valign="top">';
@@ -514,8 +525,33 @@ class Admin {
 		} else {
 			update_option( 'kintone_to_wp_setting_custom_fields', $kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields'] );
 		}
+		if ( empty( $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_featured_image'] ) ) {
+			delete_option( 'kintone_to_wp_kintone_field_code_for_featured_image' );
+		} else {
+			update_option( 'kintone_to_wp_kintone_field_code_for_featured_image', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_featured_image'] );
+		}
+
 
 	}
+
+	private function get_html_featured_image_form_select_option( $kintone_app_form_data ) {
+
+		$html_select_featured_image            = '';
+		$kintone_field_code_for_featured_image = get_option( 'kintone_to_wp_kintone_field_code_for_featured_image' );
+
+		$html_select_featured_image .= '<option ' . selected( '', $kintone_field_code_for_featured_image, false ) . ' value=""></option>';
+
+		foreach ( $kintone_app_form_data['properties'] as $kintone_form_value ) {
+
+			if ( array_key_exists( 'code', $kintone_form_value ) ) {
+				$html_select_featured_image .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_featured_image, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
+			}
+
+		}
+
+		return $html_select_featured_image;
+	}
+
 
 	/**
 	 * カスタムフィールドを設定するHTMLを出力する.
