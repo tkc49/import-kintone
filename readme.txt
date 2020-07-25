@@ -59,6 +59,9 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+* 1.7.2 - Fix can not publish post when use kintone appcode.
+* 1.7.1 - Fix can not save taxonomy when selected custom post type.
+* 1.7.0 - Add function to Post content.
 * 1.6.0 - Add function to Featured image.
 * 1.5.1 - Fix Can not import subtable data.
 * 1.5.0 - Fix Custom Taxonomy can't sync if not set category or tags.

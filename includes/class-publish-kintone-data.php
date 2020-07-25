@@ -85,7 +85,8 @@ class Publish_Kintone_Data {
 			return;
 		}
 
-		$kintone_id = get_post_meta( $post_id, 'kintone_record_id', true );
+		$kintone_id = $this->get_kintone_id_without_appcode( get_post_meta( $post_id, 'kintone_record_id', true ) );
+
 		if ( empty( $kintone_id ) ) {
 			return;
 		}
@@ -176,6 +177,23 @@ class Publish_Kintone_Data {
 		if ( $the_query->have_posts() ) {
 			wp_delete_post( $the_query->post->ID );
 		}
+
+	}
+
+	private function get_kintone_id_without_appcode( $id ) {
+
+		if ( empty( $id ) ) {
+			return $id;
+		}
+
+		$id = explode( '-', $id );
+		if ( 1 !== count( $id ) ) {
+			$id = $id[1];
+		} else {
+			$id = $id[0];
+		}
+
+		return $id;
 
 	}
 

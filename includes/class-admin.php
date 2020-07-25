@@ -290,6 +290,9 @@ class Admin {
 				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_post_title'] ) ) {
 					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title'] = sanitize_text_field( wp_unslash( $_POST['kintone_to_wp_kintone_field_code_for_post_title'] ) );
 				}
+				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_post_contents'] ) ) {
+					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_contents'] = sanitize_text_field( $_POST['kintone_to_wp_kintone_field_code_for_post_contents'] );
+				}
 				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_terms'] ) && is_array( $_POST['kintone_to_wp_kintone_field_code_for_terms'] ) ) {
 					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] = array_map( 'sanitize_text_field', wp_unslash( $_POST['kintone_to_wp_kintone_field_code_for_terms'] ) );
 				}
@@ -392,6 +395,14 @@ class Admin {
 			echo '		</td>';
 			echo '	</tr>';
 			echo '	<tr valign="top">';
+			echo '		<th scope="row"><label for="add_text">Select Post contents</label></th>';
+			echo '		<td>';
+			echo '			<select name="kintone_to_wp_kintone_field_code_for_post_contents">';
+			echo $this->get_html_post_contents_form_select_option( $disp_data );
+			echo '			</select>';
+			echo '		</td>';
+			echo '	</tr>';
+			echo '	<tr valign="top">';
 			echo '		<th scope="row"><label for="add_text">Select Term</label></th>';
 			echo '		<td>';
 			$this->output_html_selectbox_for_taxonomy( $disp_data, $reflect_post_type );
@@ -425,6 +436,30 @@ class Admin {
 		echo '</div>';
 
 	}
+
+	private function get_html_post_contents_form_select_option( $kintone_app_form_data ) {
+		$html_select_post_contents            = '';
+		$kintone_field_code_for_post_contents = get_option( 'kintone_to_wp_kintone_field_code_for_post_contents' );
+
+		$html_select_post_contents .= '<option ' . selected( '', $kintone_field_code_for_post_contents, false ) . ' value=""></option>';
+
+		foreach ( $kintone_app_form_data['properties'] as $kintone_form_value ) {
+
+			if ( array_key_exists( 'code', $kintone_form_value ) ) {
+
+				$label = '';
+				if ( isset( $kintone_form_value['label'] ) ) {
+					$label = $kintone_form_value['label'];
+				}
+
+				$html_select_post_contents .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_post_contents, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
+			}
+
+		}
+
+		return $html_select_post_contents;
+	}
+
 
 	/**********************************************************
 	 * 一括アップデート処理
@@ -513,8 +548,13 @@ class Admin {
 		} else {
 			update_option( 'kintone_to_wp_kintone_field_code_for_post_title', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title'] );
 		}
+		if ( empty( $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_contents'] ) ) {
+			delete_option( 'kintone_to_wp_kintone_field_code_for_post_contents' );
+		} else {
+			update_option( 'kintone_to_wp_kintone_field_code_for_post_contents', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_contents'] );
+		}
 
-		if ( empty( $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms']['category'] ) && empty( $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms']['post_tag'] ) ) {
+		if ( empty( $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] ) && empty( $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] ) ) {
 			delete_option( 'kintone_to_wp_kintone_field_code_for_terms' );
 		} else {
 			update_option( 'kintone_to_wp_kintone_field_code_for_terms', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] );

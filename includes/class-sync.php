@@ -34,12 +34,14 @@ class Sync {
 	 */
 	public function main( $kintoen_data, $kintone_api ) {
 
-		$this->kintone_api = $kintone_api;
+		$this->kintone_api     = $kintone_api;
+		$kintone_record_number = $this->get_kintone_record_number( $kintoen_data );
+
 
 		$args      = array(
 			'post_type'   => get_option( 'kintone_to_wp_reflect_post_type' ),
 			'meta_key'    => 'kintone_record_id',
-			'meta_value'  => $kintoen_data['record']['$id']['value'],
+			'meta_value'  => $kintone_record_number,
 			'post_status' => array(
 				'publish',
 				'pending',
@@ -73,6 +75,21 @@ class Sync {
 		}
 	}
 
+	private function get_kintone_record_number( $kintoen_data ) {
+
+		$kintone_record_number = '';
+		foreach ( $kintoen_data['record'] as $kintone_field_code => $kintone_field_info ) {
+			if ( 'RECORD_NUMBER' === $kintone_field_info['type'] ) {
+				$kintone_record_number = $kintone_field_info['value'];
+			}
+		}
+
+
+		return $kintone_record_number;
+
+	}
+
+
 	/**
 	 * Kintone のデータをWordPressに更新する
 	 *
@@ -84,14 +101,22 @@ class Sync {
 	private function update_kintone_data_to_wp_post( $post_id, $kintoen_data ) {
 
 		$post_title = '';
-		if ( array_key_exists( get_option( 'kintone_to_wp_kintone_field_code_for_post_title' ), $kintoen_data['record'] ) ) {
+		if ( ! empty( get_option( 'kintone_to_wp_kintone_field_code_for_post_title' ) ) && array_key_exists( get_option( 'kintone_to_wp_kintone_field_code_for_post_title' ), $kintoen_data['record'] ) ) {
+
 			$post_title = $kintoen_data['record'][ get_option( 'kintone_to_wp_kintone_field_code_for_post_title' ) ]['value'];
 		}
+		$post_contents = '';
+		if ( ! empty( get_option( 'kintone_to_wp_kintone_field_code_for_post_contents' ) ) && array_key_exists( get_option( 'kintone_to_wp_kintone_field_code_for_post_contents' ), $kintoen_data['record'] ) ) {
+
+			$post_contents = $kintoen_data['record'][ get_option( 'kintone_to_wp_kintone_field_code_for_post_contents' ) ]['value'];
+		}
+
 
 		$my_post = array(
-			'ID'         => $post_id,
-			'post_type'  => get_option( 'kintone_to_wp_reflect_post_type' ),
-			'post_title' => $post_title,
+			'ID'           => $post_id,
+			'post_type'    => get_option( 'kintone_to_wp_reflect_post_type' ),
+			'post_title'   => $post_title,
+			'post_content' => $post_contents,
 		);
 
 		$post_id = wp_update_post( $my_post );
@@ -272,16 +297,31 @@ class Sync {
 	 */
 	private function insert_kintone_data_to_wp_post( $kintoen_data ) {
 
-		$field_code_for_post_title = get_option( 'kintone_to_wp_kintone_field_code_for_post_title' );
+		$field_code_for_post_title    = get_option( 'kintone_to_wp_kintone_field_code_for_post_title' );
+		$field_code_for_post_title    = get_option( 'kintone_to_wp_kintone_field_code_for_post_title' );
+		$field_code_for_post_contents = get_option( 'kintone_to_wp_kintone_field_code_for_post_contents' );
+
 
 		$post_status = 'draft';
 		$post_status = apply_filters( 'import_kintone_insert_post_status', $post_status );
 
+		$post_title = '';
+		if ( isset( $kintoen_data['record'][ $field_code_for_post_title ] ) && $kintoen_data['record'][ $field_code_for_post_title ]['value'] ) {
+			$post_title = $kintoen_data['record'][ $field_code_for_post_title ]['value'];
+		}
+
+		$post_content = '';
+		if ( isset( $kintoen_data['record'][ $field_code_for_post_contents ] ) && $kintoen_data['record'][ $field_code_for_post_contents ]['value'] ) {
+			$post_content = $kintoen_data['record'][ $field_code_for_post_title ]['value'];
+		}
+
+
 		$post_id = wp_insert_post(
 			array(
-				'post_type'   => get_option( 'kintone_to_wp_reflect_post_type' ),
-				'post_title'  => $kintoen_data['record'][ $field_code_for_post_title ]['value'],
-				'post_status' => $post_status,
+				'post_type'    => get_option( 'kintone_to_wp_reflect_post_type' ),
+				'post_title'   => $post_title,
+				'post_content' => $post_content,
+				'post_status'  => $post_status,
 			)
 		);
 
