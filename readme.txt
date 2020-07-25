@@ -59,6 +59,11 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+* 1.8.3 - Change the display logic of the taxonomy configuration field.
+* 1.8.2 - Add parameter of $kintone_data to after_insert_or_update_to_post of action hook.
+* 1.8.1 - Change version of Tested up.
+* 1.8.0 - New action hooks: 'after_insert_or_update_to_post'.
+* 1.7.4 - FIx doesn't post to wordpress when $kintone_data is empty.
 * 1.7.3 - Fix can not delete post when use kintone appcode.
 * 1.7.2 - Fix can not publish post when use kintone appcode.
 * 1.7.1 - Fix can not save taxonomy when selected custom post type.
