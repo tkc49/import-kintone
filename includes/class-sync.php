@@ -298,9 +298,7 @@ class Sync {
 	private function insert_kintone_data_to_wp_post( $kintoen_data ) {
 
 		$field_code_for_post_title    = get_option( 'kintone_to_wp_kintone_field_code_for_post_title' );
-		$field_code_for_post_title    = get_option( 'kintone_to_wp_kintone_field_code_for_post_title' );
 		$field_code_for_post_contents = get_option( 'kintone_to_wp_kintone_field_code_for_post_contents' );
-
 
 		$post_status = 'draft';
 		$post_status = apply_filters( 'import_kintone_insert_post_status', $post_status );
@@ -312,9 +310,8 @@ class Sync {
 
 		$post_content = '';
 		if ( isset( $kintoen_data['record'][ $field_code_for_post_contents ] ) && $kintoen_data['record'][ $field_code_for_post_contents ]['value'] ) {
-			$post_content = $kintoen_data['record'][ $field_code_for_post_title ]['value'];
+			$post_content = $kintoen_data['record'][ $field_code_for_post_contents ]['value'];
 		}
-
 
 		$post_id = wp_insert_post(
 			array(
