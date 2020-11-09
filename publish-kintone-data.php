@@ -69,11 +69,11 @@ class KintoneToWP {
 		// Create Admin Menu.
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 
-		// webhook
+		// Webhook.
 		add_action( 'wp_ajax_kintone_to_wp_start', array( $this, 'kintone_to_wp_start' ) );
 		add_action( 'wp_ajax_nopriv_kintone_to_wp_start', array( $this, 'kintone_to_wp_start' ) );
 
-		add_action( 'save_post', array( $this, 'update_post_kintone_data' ) );
+		add_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10, 3 );
 	}
 
 	public function admin_menu() {
@@ -93,7 +93,6 @@ class KintoneToWP {
 
 		if ( ! empty( $_POST ) && check_admin_referer( $this->nonce ) ) {
 
-
 			if ( isset( $_POST['get_kintone_fields'] ) ) {
 
 				$kintone_basci_information = array();
@@ -103,7 +102,6 @@ class KintoneToWP {
 				$kintone_basci_information['url']       = 'https://' . $kintone_basci_information['domain'] . '/k/v1/form.json?app=' . $kintone_basci_information['app_id'];
 				$kintone_basci_information['token']     = sanitize_text_field( trim( $_POST['kintone_to_wp_kintone_api_token'] ) );
 				$kintone_basci_information['post_type'] = sanitize_text_field( trim( $_POST['kintone_to_wp_reflect_post_type'] ) );
-
 
 				$error_flg = false;
 				if ( ! $kintone_basci_information['domain'] ) {
@@ -122,7 +120,6 @@ class KintoneToWP {
 						echo '<div class="error fade"><p><strong>setting information is incorrect</strong></p></div>';
 					}
 				}
-
 			} elseif ( isset( $_POST['save'] ) ) {
 
 				$kintone_app_fields_code_for_wp = array();
@@ -268,21 +265,26 @@ class KintoneToWP {
 			echo '<p class="submit"><input type="submit" name="bulk_update" class="button-primary" value="Bulk Update" /></p>';
 			echo '</form>';
 
-
 		}
 
 		echo '</div>';
 
-
 	}
 
-	public function update_post_kintone_data( $post_id ) {
+	/**
+	 * 管理画面から記事を保存した時に実行する.
+	 *
+	 * @param int     $post_id .
+	 * @param WP_Post $post .
+	 * @param boolean $update .
+	 */
+	public function update_post_kintone_data( $post_id, $post, $update ) {
 
 		if ( wp_is_post_revision( $post_id ) ) {
 			return;
 		}
 
-		if ( 'trash' == get_post_status( $post_id ) ) {
+		if ( 'trash' === get_post_status( $post_id ) ) {
 			return;
 		}
 
@@ -299,11 +301,10 @@ class KintoneToWP {
 			return;
 		}
 
-		// WordPress側で更新処理をされた場合、再度 kintoneからデータを取得して反映する（kintoneの情報がつねに正しい）
+		// WordPress側で更新処理をされた場合、再度 kintoneからデータを取得して反映する（kintoneの情報が常に正しい）.
 		$url                                = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/record.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&id=' . $kintone_id;
 		$retun_data                         = $this->kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
 		$retun_data['kintone_to_wp_status'] = 'normal';
-
 		$this->sync( $retun_data );
 
 		add_action( 'save_post', array( $this, 'update_post_kintone_data' ) );
@@ -619,7 +620,6 @@ class KintoneToWP {
 		$update_kintone_data_json = file_get_contents( "php://input" );
 		$update_kintone_data      = json_decode( $update_kintone_data_json, true );
 
-
 		if ( $update_kintone_data['type'] == 'DELETE_RECORD' ) {
 
 			$kintone_id = $update_kintone_data['recordId'];
@@ -703,7 +703,6 @@ class KintoneToWP {
 			}
 		}
 
-
 		return $kintone_record_number;
 
 	}
@@ -720,12 +719,12 @@ class KintoneToWP {
 				'post_type'   => get_option( 'kintone_to_wp_reflect_post_type' ),
 				'meta_key'    => 'kintone_record_id',
 				'meta_value'  => $kintone_record_number,
-				'post_status' => array( 'publish', 'pending', 'draft', 'future', 'private' )
+				'post_status' => array( 'publish', 'pending', 'draft', 'future', 'private' ),
 			);
 			$the_query = new WP_Query( $args );
 			if ( $the_query->have_posts() ) {
 
-				// WordPressにデータが存在するので、UPDATE or DELETE の処理をする
+				// WordPressにデータが存在するので、UPDATE or DELETE の処理をする.
 				if ( $kintoen_data['kintone_to_wp_status'] == 'normal' ) {
 					$this->update_kintone_data_to_wp_post( $the_query->post->ID, $kintoen_data );
 					$this->update_kintone_data_to_wp_post_meta( $the_query->post->ID, $kintoen_data );
@@ -742,10 +741,9 @@ class KintoneToWP {
 					$post_id = $the_query->post->ID;
 
 				}
-
 			} else {
 
-				// WordPressにデータが存在しないので、INSERT 処理をする
+				// WordPressにデータが存在しないので、INSERT 処理をする.
 				if ( $kintoen_data['kintone_to_wp_status'] == 'normal' ) {
 					$post_id = $this->insert_kintone_data_to_wp_post( $kintoen_data );
 					$this->update_kintone_data_to_wp_post_meta( $post_id, $kintoen_data );
@@ -754,7 +752,6 @@ class KintoneToWP {
 
 					$status = 'insert';
 				}
-
 			}
 
 			do_action( 'after_insert_or_update_to_post', $post_id, $kintoen_data, $status );
@@ -843,7 +840,6 @@ class KintoneToWP {
 
 		$setting_custom_fields = get_option( 'kintone_to_wp_setting_custom_fields' );
 
-
 		// update kintone_id
 		update_post_meta( $post_id, 'kintone_record_id', $kintone_data['record']['$id']['value'] );
 
@@ -890,12 +886,8 @@ class KintoneToWP {
 					} else {
 						update_post_meta( $post_id, $kintone_fieldcode, $record_data );
 					}
-
-
 				}
-
 			}
-
 		}
 	}
 
@@ -1045,11 +1037,11 @@ class KintoneToWP {
 		include_once ABSPATH . 'wp-admin/includes/media.php';
 		include_once ABSPATH . 'wp-admin/includes/image.php';
 
-		$overrides = array(
+		$overrides  = array(
 			'test_form' => false,
 			'action'    => ''
 		);
-		$file      = wp_handle_upload( $upload, $overrides );
+		$file       = wp_handle_upload( $upload, $overrides );
 
 		$attachment = array(
 			'post_title'     => $temp_base_data['name'],
