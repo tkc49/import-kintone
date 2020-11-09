@@ -280,6 +280,15 @@ class KintoneToWP {
 	 */
 	public function update_post_kintone_data( $post_id, $post, $update ) {
 
+		// Autosave, do nothing.
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		// AJAX? Not used here.
+		if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
+			return;
+		}
+
 		if ( wp_is_post_revision( $post_id ) ) {
 			return;
 		}
@@ -288,7 +297,11 @@ class KintoneToWP {
 			return;
 		}
 
-		remove_action( 'save_post', array( $this, 'update_post_kintone_data' ) );
+		if ( ! $update ) {
+			return;
+		}
+
+		remove_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10 );
 
 		$reflect_post_type = get_option( 'kintone_to_wp_reflect_post_type' );
 		if ( get_post_type( $post_id ) !== $reflect_post_type ) {
@@ -307,7 +320,7 @@ class KintoneToWP {
 		$retun_data['kintone_to_wp_status'] = 'normal';
 		$this->sync( $retun_data );
 
-		add_action( 'save_post', array( $this, 'update_post_kintone_data' ) );
+//		add_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10, 3 );
 
 	}
 
@@ -641,7 +654,9 @@ class KintoneToWP {
 
 			$kintone_data['kintone_to_wp_status'] = 'normal';
 			$kintone_data                         = apply_filters( 'kintone_to_wp_kintone_data', $kintone_data );
+			remove_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10 );
 			$this->sync( $kintone_data );
+//			add_action( 'save_post', array( $this, 'update_post_kintone_data' ),10 );
 		}
 
 	}
