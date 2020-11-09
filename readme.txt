@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 5.4
-Stable tag: 1.8.3
+Stable tag: 1.9.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,13 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.9.0 =
+Release Date: December 9th, 2020
+
+* [Added] Add hook import_kintone_insert_post_status
+* [Updated] Refactoring
+
 * 1.8.3 - Change the display logic of the taxonomy configuration field.
 * 1.8.2 - Add parameter of $kintone_data to after_insert_or_update_to_post of action hook.
 * 1.8.1 - Change version of Tested up.
