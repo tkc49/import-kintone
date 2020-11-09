@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:
  * Description: The data of kintone can be reflected on WordPress.
- * Version:     1.9.1
+ * Version:     1.9.2
  * Author:      Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:     GPLv2
@@ -810,8 +810,8 @@ class KintoneToWP {
 			$post_content = $kintoen_data['record'][ $field_code_for_post_contents ]['value'];
 		}
 
-		$post_auhor = '';
-		$post_auhor = apply_filters( 'import_kintone_insert_post_auhor', $post_auhor );
+		$post_author = '';
+		$post_author = apply_filters( 'import_kintone_insert_post_author', $post_author );
 
 		$post_id = wp_insert_post(
 			array(
@@ -819,7 +819,7 @@ class KintoneToWP {
 				'post_title'   => $post_title,
 				'post_content' => $post_content,
 				'post_status'  => $post_status,
-				'post_author'  => $post_auhor,
+				'post_author'  => $post_author,
 			)
 		);
 
@@ -1056,19 +1056,20 @@ class KintoneToWP {
 		include_once ABSPATH . 'wp-admin/includes/media.php';
 		include_once ABSPATH . 'wp-admin/includes/image.php';
 
-		$overrides  = array(
+		$overrides = array(
 			'test_form' => false,
 			'action'    => ''
 		);
-		$file       = wp_handle_upload( $upload, $overrides );
-		$post_auhor = '';
-		$post_auhor = apply_filters( 'import_kintone_insert_post_auhor', $post_auhor );
+		$file      = wp_handle_upload( $upload, $overrides );
+
+		$post_author = '';
+		$post_author = apply_filters( 'import_kintone_insert_post_author', $post_author );
 
 		$attachment = array(
 			'post_title'     => $temp_base_data['name'],
 			'post_mime_type' => $file['type'],
 			'post_parent'    => $post_id,
-			'post_author'    => $post_auhor,
+			'post_author'    => $post_author,
 		);
 
 		$aid         = wp_insert_attachment( $attachment, $file['file'], $post_id );
