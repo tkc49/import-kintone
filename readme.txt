@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 5.4
-Stable tag: 1.9.2
+Stable tag: 1.9.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -60,18 +60,23 @@ https://www.cybozu.com/jp/inquiry/
 
 == Changelog ==
 
+= 1.9.3 =
+Release Date: November 25th, 2020
+
+* [Fixed] Fixed a bug that caused tags to be removed when updating with Webhook from kintone
+
 = 1.9.2 =
-Release Date: December 9th, 2020
+Release Date: October 9th, 2020
 
 * [Fixed] Typo
 
 = 1.9.1 =
-Release Date: December 9th, 2020
+Release Date: October 9th, 2020
 
 * [Fixed] Fixed the name of import_kintone_insert_post_auhor hook
 
 = 1.9.0 =
-Release Date: December 9th, 2020
+Release Date: October 9th, 2020
 
 * [Added] Add hook import_kintone_insert_post_status
 * [Updated] Refactoring
