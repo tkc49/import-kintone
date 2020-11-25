@@ -3,7 +3,7 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:
  * Description: The data of kintone can be reflected on WordPress.
- * Version:     1.9.3
+ * Version:     1.9.4
  * Author:      Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:     GPLv2
@@ -1080,7 +1080,11 @@ class KintoneToWP {
 		$attach_data = wp_generate_attachment_metadata( $aid, $file['file'] );
 
 		if ( $featured_image_flag ) {
-
+			if ( has_post_thumbnail( $post_id ) ) {
+				$thumbnail_id = get_post_thumbnail_id( $post_id );
+				delete_post_thumbnail( $post_id );
+				wp_delete_attachment( $thumbnail_id );  /*Delete previous image画像が増えていかないように*/
+			}
 			set_post_thumbnail( $post_id, $aid );
 
 		} else {
