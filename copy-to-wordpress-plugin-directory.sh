@@ -1,2 +1,0 @@
-#!/bin/sh
-rsync -av --delete --exclude '/bin/' --exclude '/.idea/' --exclude '/tests/' --exclude '*.git*' --exclude '.distignore' --exclude '.editorconfig' --exclude '.gitignore' --exclude '/phpcs.xml.dist' --exclude '/.travis.yml' --exclude '/README.md' --exclude '/composer.json' --exclude 'composer.lock' --exclude 'Gruntfile.js' --exclude 'phpunit.xml.dist' --exclude 'zip.sh' --exclude 'copy-to-wordpress-plugin-directory.sh' --exclude '.DS_Store' ../publish-kintone-data/ /Users/takashi/source/wordpress_plugins/import-kintone/trunk/
