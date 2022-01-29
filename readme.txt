@@ -2,8 +2,8 @@
 Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
-Tested up to: 5.4
-Stable tag: 1.9.4
+Tested up to: 5.9
+Stable tag: 1.9.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,19 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.9.5 =
+Release Date: January 29th, 2022
+
+* [Changed] Changed directory structure
+* [Add] Add the following filter hooks
+・publish_kintone_data_kintone_api_token
+・publish_kintone_data_reflect_post_type
+・publish_kintone_data_kintone_field_code_for_featured_image
+・publish_kintone_data_kintone_field_code_for_post_title
+・publish_kintone_data_kintone_field_code_for_post_contents
+・publish_kintone_data_kintone_field_code_for_terms
+・publish_kintone_data_setting_custom_fields
 
 = 1.9.4 =
 Release Date: November 25th, 2020
