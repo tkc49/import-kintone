@@ -276,6 +276,9 @@ class Admin{
 			$data['record']               = $value;
 			$data['kintone_to_wp_status'] = 'normal';
 			$data['type'] = 'UPDATE_RECORD';
+			$data['app'] = array(
+				'id' => get_option( 'kintone_to_wp_target_appid' )
+			);
 			$data                         = apply_filters( 'kintone_to_wp_kintone_data', $data );
 			$publish_kintone_data = new Publish_Kintone_Data();
 			$publish_kintone_data->sync( $data );
