@@ -317,6 +317,9 @@ class Publish_Kintone_Data{
 
 	private function update_kintone_temp_file_to_meta( $post_id, $temp_base_data, $post_meta_name, $featured_image_flag = false ) {
 
+		if( $temp_base_data['size'] === '0' ){
+			return;
+		}
 
 		$file_data = $this->get_kintone_temp_file( $temp_base_data['fileKey'] );
 
