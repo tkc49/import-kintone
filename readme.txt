@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 5.9
-Stable tag: 1.9.6
+Stable tag: 1.9.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -60,11 +60,15 @@ https://www.cybozu.com/jp/inquiry/
 
 == Changelog ==
 
+= 1.9.7 =
+Release Date: January 30th, 2022
+
+* [Fixed] If the size of the attachment is 0 bytes, don't process the registration to WordPress.
+
 = 1.9.6 =
 Release Date: January 29th, 2022
 
 * [Added] Added app.id to filter hook parameter of kintone_to_wp_kintone_data when clicked bulk update button.
-
 
 = 1.9.5 =
 Release Date: January 29th, 2022
