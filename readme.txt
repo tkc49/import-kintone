@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 5.9
-Stable tag: 1.9.7
+Stable tag: 1.10.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,12 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.10.0 =
+Release Date: August 1th, 2022
+
+* [Add] Support for using shorts to display data
+* [Add] Support for passing data via kintone.proxy
 
 = 1.9.7 =
 Release Date: January 30th, 2022

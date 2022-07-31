@@ -1,20 +1,68 @@
 <?php
 namespace publish_kintone_data;
 
+use WP_Error;
 use WP_Query;
 
 class Publish_Kintone_Data {
 
+	/**
+	 * Kintone API token.
+	 *
+	 * @var string
+	 */
 	private $kintone_to_wp_kintone_api_token;
+
+	/**
+	 * Reflect Post type.
+	 *
+	 * @var string
+	 */
 	private $kintone_to_wp_reflect_post_type;
+
+	/**
+	 * Kintone field code for featured image.
+	 *
+	 * @var string
+	 */
 	private $kintone_to_wp_kintone_field_code_for_featured_image;
+
+	/**
+	 * Kintone field code for featured image.
+	 *
+	 * @var string
+	 */
 	private $kintone_to_wp_kintone_field_code_for_post_title;
+
+	/**
+	 * Kintone field code for post contents.
+	 *
+	 * @var string
+	 */
 	private $kintone_to_wp_kintone_field_code_for_post_contents;
+
+	/**
+	 * Setting custom fields.
+	 *
+	 * @var array
+	 */
 	private $kintone_to_wp_setting_custom_fields;
+
+	/**
+	 * Kintone field code for terms.
+	 *
+	 * @var array
+	 */
 	private $kintone_to_wp_kintone_field_code_for_terms;
 
 
+	/**
+	 * Construct
+	 */
 	public function __construct() {
+
+		require_once KINTONE_TO_WP_PATH . '/inc/class-shortcode.php';
+
 		// Webhook.
 		add_action( 'wp_ajax_kintone_to_wp_start', array( $this, 'kintone_to_wp_start' ) );
 		add_action( 'wp_ajax_nopriv_kintone_to_wp_start', array( $this, 'kintone_to_wp_start' ) );
@@ -29,15 +77,39 @@ class Publish_Kintone_Data {
 	public function kintone_to_wp_start() {
 
 		if ( ! Kintone_Utility::check_kintone_ip_adress( $_SERVER['REMOTE_ADDR'] ) ) {
-			return;
+			header( 'HTTP/1.1 403 Forbidden' );
+			echo '{}';
+			exit;
 		}
 
 		$kintone_data_json_by_webhook = file_get_contents( 'php://input' );
 		$kintone_data_by_webhook      = json_decode( $kintone_data_json_by_webhook, true );
+
+		if ( null === $kintone_data_by_webhook ) {
+			if ( isset( $_GET['type'] ) && $_GET['type'] ) {
+				$kintone_data_by_webhook['type'] = $_GET['type'];
+			}
+
+			if ( isset( $_GET['recordId'] ) && $_GET['recordId'] ) {
+				$kintone_data_by_webhook['recordId'] = $_GET['recordId'];
+			}
+		}
+
 		$this->sync( $kintone_data_by_webhook );
+
+		header( 'Content-Type: application/json; charset=utf-8' );
+		echo wp_json_encode( '{}' );
+		exit;
 
 	}
 
+	/**
+	 * Sync
+	 *
+	 * @param array $kintoen_data .
+	 *
+	 * @return void
+	 */
 	public function sync( $kintoen_data ) {
 
 		$this->kintone_to_wp_kintone_api_token                     = apply_filters( 'publish_kintone_data_kintone_api_token', get_option( 'kintone_to_wp_kintone_api_token' ), $kintoen_data );
@@ -49,7 +121,7 @@ class Publish_Kintone_Data {
 		$this->kintone_to_wp_setting_custom_fields                 = apply_filters( 'publish_kintone_data_setting_custom_fields', get_option( 'kintone_to_wp_setting_custom_fields' ), $kintoen_data );
 
 		// WordPressの投稿を削除.
-		if ( isset( $kintoen_data['type'] ) && $kintoen_data['type'] === 'DELETE_RECORD' ) {
+		if ( isset( $kintoen_data['type'] ) && 'DELETE_RECORD' === $kintoen_data['type'] ) {
 			$kintone_id = $kintoen_data['recordId'];
 			$this->delete( $kintone_id, $kintoen_data );
 			return;
@@ -77,7 +149,7 @@ class Publish_Kintone_Data {
 			if ( $the_query->have_posts() ) {
 
 				// WordPressにデータが存在するので、UPDATE or DELETE の処理をする.
-				if ( $kintoen_data['kintone_to_wp_status'] == 'normal' ) {
+				if ( 'normal' === $kintoen_data['kintone_to_wp_status'] ) {
 					$this->update_kintone_data_to_wp_post( $the_query->post->ID, $kintoen_data );
 					$this->update_kintone_data_to_wp_post_meta( $the_query->post->ID, $kintoen_data );
 					$this->update_kintone_data_to_wp_terms( $the_query->post->ID, $kintoen_data );
@@ -86,7 +158,7 @@ class Publish_Kintone_Data {
 					$status  = 'update';
 					$post_id = $the_query->post->ID;
 
-				} elseif ( $kintoen_data['kintone_to_wp_status'] == 'delete' ) {
+				} elseif ( 'delete' === $kintoen_data['kintone_to_wp_status'] ) {
 					wp_delete_post( $the_query->post->ID );
 
 					$status  = 'delete';
@@ -96,7 +168,7 @@ class Publish_Kintone_Data {
 			} else {
 
 				// WordPressにデータが存在しないので、INSERT 処理をする.
-				if ( $kintoen_data['kintone_to_wp_status'] == 'normal' ) {
+				if ( 'normal' === $kintoen_data['kintone_to_wp_status'] ) {
 					$post_id = $this->insert_kintone_data_to_wp_post( $kintoen_data );
 					$this->update_kintone_data_to_wp_post_meta( $post_id, $kintoen_data );
 					$this->update_kintone_data_to_wp_terms( $post_id, $kintoen_data );
@@ -113,6 +185,14 @@ class Publish_Kintone_Data {
 
 	}
 
+	/**
+	 * Update featured image
+	 *
+	 * @param int   $post_id .
+	 * @param array $kintone_data .
+	 *
+	 * @return void
+	 */
 	private function update_kintone_data_to_wp_post_featured_image( $post_id, $kintone_data ) {
 
 		$kintone_to_wp_kintone_field_code_for_featured_image = $this->kintone_to_wp_kintone_field_code_for_featured_image;
@@ -131,6 +211,13 @@ class Publish_Kintone_Data {
 		}
 	}
 
+	/**
+	 * Insert kintone data to WP post
+	 *
+	 * @param array $kintoen_data .
+	 *
+	 * @return int|WP_Error
+	 */
 	private function insert_kintone_data_to_wp_post( $kintoen_data ) {
 
 		$field_code_for_post_title    = $this->kintone_to_wp_kintone_field_code_for_post_title;
@@ -166,13 +253,22 @@ class Publish_Kintone_Data {
 
 	}
 
+	/**
+	 * Update kintone data to WP post
+	 *
+	 * @param int   $post_id .
+	 * @param array $kintoen_data .
+	 *
+	 * @return void
+	 */
 	private function update_kintone_data_to_wp_post( $post_id, $kintoen_data ) {
 
 		$post_title = '';
 		if ( ! empty( $this->kintone_to_wp_kintone_field_code_for_post_title ) && array_key_exists( $this->kintone_to_wp_kintone_field_code_for_post_title, $kintoen_data['record'] ) ) {
 			$post_title = $kintoen_data['record'][ $this->kintone_to_wp_kintone_field_code_for_post_title ]['value'];
 		}
-		$post_contents = '';
+		$_post         = get_post( $post_id );
+		$post_contents = $_post->post_content;
 		if ( ! empty( $this->kintone_to_wp_kintone_field_code_for_post_contents ) && array_key_exists( $this->kintone_to_wp_kintone_field_code_for_post_contents, $kintoen_data['record'] ) ) {
 			$post_contents = $kintoen_data['record'][ $this->kintone_to_wp_kintone_field_code_for_post_contents ]['value'];
 		}
@@ -194,36 +290,52 @@ class Publish_Kintone_Data {
 
 	}
 
+	/**
+	 * Update kintone data to wp post meta
+	 *
+	 * @param int   $post_id .
+	 * @param array $kintone_data .
+	 *
+	 * @return void
+	 */
 	private function update_kintone_data_to_wp_post_meta( $post_id, $kintone_data ) {
 
 		$setting_custom_fields = $this->kintone_to_wp_setting_custom_fields;
+		if ( empty( $setting_custom_fields ) ) {
+			return;
+		}
 
-		// update kintone_id
+		// update kintone_id.
 		update_post_meta( $post_id, 'kintone_record_id', $kintone_data['record']['$id']['value'] );
 
 		foreach ( $setting_custom_fields as $key => $kintone_fieldcode ) {
 
 			if ( $kintone_fieldcode ) {
 
-				if ( $kintone_data['record'][ $key ]['type'] == 'USER_SELECT' ) {
+				if ( 'USER_SELECT' === $kintone_data['record'][ $key ]['type'] ) {
 
 					update_post_meta( $post_id, $kintone_fieldcode, $kintone_data['record'][ $key ]['value'] );
 
-				} elseif ( $kintone_data['record'][ $key ]['type'] == 'FILE' ) {
+				} elseif ( 'FILE' === $kintone_data['record'][ $key ]['type'] ) {
 
 					if ( ! empty( $kintone_data['record'][ $key ]['value'] ) ) {
 						$this->update_kintone_temp_file_to_meta( $post_id, $kintone_data['record'][ $key ]['value'][0], $kintone_fieldcode );
 					} else {
 						$this->delete_kintone_temp_file( $post_id, $kintone_fieldcode );
 					}
-				} elseif ( $kintone_data['record'][ $key ]['type'] == 'CREATOR' || $kintone_data['record'][ $key ]['type'] == 'MODIFIER' ) {
+				} elseif ( 'CREATOR' === $kintone_data['record'][ $key ]['type'] || 'MODIFIER' === $kintone_data['record'][ $key ]['type'] ) {
 
 					update_post_meta( $post_id, $kintone_fieldcode . '_code', $kintone_data['record'][ $key ]['value']['code'] );
 					update_post_meta( $post_id, $kintone_fieldcode . '_name', $kintone_data['record'][ $key ]['value']['name'] );
 
-				} elseif ( $kintone_data['record'][ $key ]['type'] == 'SUBTABLE' ) {
+				} elseif ( 'SUBTABLE' === $kintone_data['record'][ $key ]['type'] ) {
 
 					update_post_meta( $post_id, $kintone_fieldcode, $kintone_data['record'][ $key ]['value'] );
+
+				} elseif ( 'DATETIME' === $kintone_data['record'][ $key ]['type'] ) {
+
+					$value = date_i18n( 'Y-m-d H:i', strtotime( $kintone_data['record'][ $key ]['value'] ) + ( 9 * 60 * 60 ) );
+					update_post_meta( $post_id, $kintone_fieldcode, $value );
 
 				} else {
 					$record_data = $this->make_kintone_array_to_string( $kintone_data['record'][ $key ]['value'] );
@@ -247,7 +359,14 @@ class Publish_Kintone_Data {
 		}
 	}
 
-
+	/**
+	 * Update kintone data to WP terms
+	 *
+	 * @param int   $post_id .
+	 * @param array $kintone_data .
+	 *
+	 * @return void
+	 */
 	private function update_kintone_data_to_wp_terms( $post_id, $kintone_data ) {
 
 		$kintone_field_code_for_terms = $this->kintone_to_wp_kintone_field_code_for_terms;
@@ -268,8 +387,13 @@ class Publish_Kintone_Data {
 		}
 	}
 
-
-
+	/**
+	 * Change kintone array value to string
+	 *
+	 * @param array $kintone_data .
+	 *
+	 * @return string
+	 */
 	private function make_kintone_array_to_string( $kintone_data ) {
 
 		$record_data = $kintone_data;
@@ -282,6 +406,13 @@ class Publish_Kintone_Data {
 		return $record_data;
 	}
 
+	/**
+	 * Get kintone template file
+	 *
+	 * @param string $filekey .
+	 *
+	 * @return array|mixed|WP_Error
+	 */
 	private function get_kintone_temp_file( $filekey ) {
 
 		$url = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/file.json?fileKey=' . $filekey;
@@ -290,6 +421,15 @@ class Publish_Kintone_Data {
 
 	}
 
+	/**
+	 * Delete kintone template file
+	 *
+	 * @param int     $post_id .
+	 * @param string  $kintone_fieldcode .
+	 * @param boolean $featured_image_flag .
+	 *
+	 * @return void
+	 */
 	private function delete_kintone_temp_file( $post_id, $kintone_fieldcode, $featured_image_flag = false ) {
 
 		if ( $featured_image_flag ) {
@@ -311,9 +451,19 @@ class Publish_Kintone_Data {
 		}
 	}
 
+	/**
+	 * Update template file of kintone to WP meta
+	 *
+	 * @param int     $post_id .
+	 * @param array   $temp_base_data .
+	 * @param string  $post_meta_name .
+	 * @param boolean $featured_image_flag .
+	 *
+	 * @return void
+	 */
 	private function update_kintone_temp_file_to_meta( $post_id, $temp_base_data, $post_meta_name, $featured_image_flag = false ) {
 
-		if ( $temp_base_data['size'] === '0' ) {
+		if ( '0' === $temp_base_data['size'] ) {
 			return;
 		}
 
@@ -395,8 +545,8 @@ class Publish_Kintone_Data {
 	/**
 	 * Kintoneのレコードが削除されたので、WordPressの記事を削除する
 	 *
-	 * @param $record_id
-	 * @param $update_kintone_data
+	 * @param string $record_id .
+	 * @param array  $update_kintone_data .
 	 * @return void
 	 */
 	private function delete( $record_id, $update_kintone_data ) {
@@ -411,7 +561,7 @@ class Publish_Kintone_Data {
 		if ( $the_query->have_posts() ) {
 			wp_delete_post( $the_query->post->ID );
 		} else {
-			// 削除できなかったらアプリコード付きで削除する
+			// 削除できなかったらアプリコード付きで削除する.
 			$url              = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/app.json?id=' . $update_kintone_data['app']['id'];
 			$kintone_app_data = Kintone_Utility::kintone_api( $url, $this->kintone_to_wp_kintone_api_token );
 
@@ -433,8 +583,8 @@ class Publish_Kintone_Data {
 	/**
 	 * KintoneのRECORD_NUMBERフィールドの値を取得する
 	 *
-	 * @param $kintoen_data
-	 * @return mixed|string
+	 * @param array $kintoen_data .
+	 * @return string
 	 */
 	private function get_kintone_record_number( $kintoen_data ) {
 
