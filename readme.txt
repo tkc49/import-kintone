@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 5.9
-Stable tag: 1.10.0
+Stable tag: 1.11.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,14 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.11.0 =
+Release Date: October 10th, 2022
+
+* [Added] Fillter hook 'import_kintone_insert_post_data'
+* [Deprecated] Fillter hook 'import_kintone_insert_post_status'
+* [Deprecated] Fillter hook 'import_kintone_insert_post_author'
+* [Fixed] Typo
 
 = 1.10.0 =
 Release Date: August 1th, 2022

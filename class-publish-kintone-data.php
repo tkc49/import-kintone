@@ -214,40 +214,52 @@ class Publish_Kintone_Data {
 	/**
 	 * Insert kintone data to WP post
 	 *
-	 * @param array $kintoen_data .
+	 * @param array $kintone_data .
 	 *
 	 * @return int|WP_Error
 	 */
-	private function insert_kintone_data_to_wp_post( $kintoen_data ) {
+	private function insert_kintone_data_to_wp_post( $kintone_data ) {
 
 		$field_code_for_post_title    = $this->kintone_to_wp_kintone_field_code_for_post_title;
 		$field_code_for_post_contents = $this->kintone_to_wp_kintone_field_code_for_post_contents;
 
 		$post_status = 'draft';
-		$post_status = apply_filters( 'import_kintone_insert_post_status', $post_status );
+		$post_status = apply_filters_deprecated( 'import_kintone_insert_post_status', array( $post_status ), '1.11.0', 'import_kintone_insert_post_data' );
 
 		$post_title = '';
-		if ( isset( $kintoen_data['record'][ $field_code_for_post_title ] ) && $kintoen_data['record'][ $field_code_for_post_title ]['value'] ) {
-			$post_title = $kintoen_data['record'][ $field_code_for_post_title ]['value'];
+		if ( isset( $kintone_data['record'][ $field_code_for_post_title ] ) && $kintone_data['record'][ $field_code_for_post_title ]['value'] ) {
+			$post_title = $kintone_data['record'][ $field_code_for_post_title ]['value'];
 		}
 
 		$post_content = '';
-		if ( isset( $kintoen_data['record'][ $field_code_for_post_contents ] ) && $kintoen_data['record'][ $field_code_for_post_contents ]['value'] ) {
-			$post_content = $kintoen_data['record'][ $field_code_for_post_contents ]['value'];
+		if ( isset( $kintone_data['record'][ $field_code_for_post_contents ] ) && $kintone_data['record'][ $field_code_for_post_contents ]['value'] ) {
+			$post_content = $kintone_data['record'][ $field_code_for_post_contents ]['value'];
 		}
 
 		$post_author = '';
-		$post_author = apply_filters( 'import_kintone_insert_post_author', $post_author );
+		$post_author = apply_filters_deprecated( 'import_kintone_insert_post_author', array( $post_author ), '1.11.0', 'import_kintone_insert_post_data' );
 
-		$post_id = wp_insert_post(
-			array(
-				'post_type'    => $this->kintone_to_wp_reflect_post_type,
-				'post_title'   => $post_title,
-				'post_content' => $post_content,
-				'post_status'  => $post_status,
-				'post_author'  => $post_author,
-			)
+		$insert_post_data = array(
+			'post_type'    => get_option( 'kintone_to_wp_reflect_post_type' ),
+			'post_title'   => $post_title,
+			'post_content' => $post_content,
+			'post_status'  => $post_status,
+			'post_author'  => $post_author,
+			'post_date'    => '',
 		);
+		/**
+		 * Filters Change Post's parameter from kintone information.
+		 *
+		 * @param array $insert_post_data .
+		 * @param array $kintone_data .
+		 *
+		 * @since 1.10.0
+		 */
+		$insert_post_data = apply_filters( 'import_kintone_insert_post_data', $insert_post_data, $kintone_data );
+		$post_id          = null;
+		if ( ! empty( $insert_post_data ) ) {
+			$post_id = wp_insert_post( $insert_post_data );
+		}
 
 		return $post_id;
 
