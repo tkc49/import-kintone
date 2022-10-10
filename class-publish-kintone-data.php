@@ -170,10 +170,11 @@ class Publish_Kintone_Data {
 				// WordPressにデータが存在しないので、INSERT 処理をする.
 				if ( 'normal' === $kintoen_data['kintone_to_wp_status'] ) {
 					$post_id = $this->insert_kintone_data_to_wp_post( $kintoen_data );
-					$this->update_kintone_data_to_wp_post_meta( $post_id, $kintoen_data );
-					$this->update_kintone_data_to_wp_terms( $post_id, $kintoen_data );
-					$this->update_kintone_data_to_wp_post_featured_image( $post_id, $kintoen_data );
-
+					if ( $post_id ) {
+						$this->update_kintone_data_to_wp_post_meta( $post_id, $kintoen_data );
+						$this->update_kintone_data_to_wp_terms( $post_id, $kintoen_data );
+						$this->update_kintone_data_to_wp_post_featured_image( $post_id, $kintoen_data );
+					}
 					$status = 'insert';
 				}
 			}
@@ -240,7 +241,7 @@ class Publish_Kintone_Data {
 		$post_author = apply_filters_deprecated( 'import_kintone_insert_post_author', array( $post_author ), '1.11.0', 'import_kintone_insert_post_data' );
 
 		$insert_post_data = array(
-			'post_type'    => get_option( 'kintone_to_wp_reflect_post_type' ),
+			'post_type'    => $this->kintone_to_wp_reflect_post_type,
 			'post_title'   => $post_title,
 			'post_content' => $post_content,
 			'post_status'  => $post_status,
@@ -269,36 +270,52 @@ class Publish_Kintone_Data {
 	 * Update kintone data to WP post
 	 *
 	 * @param int   $post_id .
-	 * @param array $kintoen_data .
+	 * @param array $kintone_data .
 	 *
-	 * @return void
+	 * @return int|null|WP_Error
 	 */
-	private function update_kintone_data_to_wp_post( $post_id, $kintoen_data ) {
+	private function update_kintone_data_to_wp_post( $post_id, $kintone_data ) {
 
 		$post_title = '';
-		if ( ! empty( $this->kintone_to_wp_kintone_field_code_for_post_title ) && array_key_exists( $this->kintone_to_wp_kintone_field_code_for_post_title, $kintoen_data['record'] ) ) {
-			$post_title = $kintoen_data['record'][ $this->kintone_to_wp_kintone_field_code_for_post_title ]['value'];
+		if ( ! empty( $this->kintone_to_wp_kintone_field_code_for_post_title ) && array_key_exists( $this->kintone_to_wp_kintone_field_code_for_post_title, $kintone_data['record'] ) ) {
+			$post_title = $kintone_data['record'][ $this->kintone_to_wp_kintone_field_code_for_post_title ]['value'];
 		}
 		$_post         = get_post( $post_id );
 		$post_contents = $_post->post_content;
-		if ( ! empty( $this->kintone_to_wp_kintone_field_code_for_post_contents ) && array_key_exists( $this->kintone_to_wp_kintone_field_code_for_post_contents, $kintoen_data['record'] ) ) {
-			$post_contents = $kintoen_data['record'][ $this->kintone_to_wp_kintone_field_code_for_post_contents ]['value'];
+		if ( ! empty( $this->kintone_to_wp_kintone_field_code_for_post_contents ) && array_key_exists( $this->kintone_to_wp_kintone_field_code_for_post_contents, $kintone_data['record'] ) ) {
+			$post_contents = $kintone_data['record'][ $this->kintone_to_wp_kintone_field_code_for_post_contents ]['value'];
 		}
 
-		$my_post = array(
+		$update_post_data = array(
 			'ID'           => $post_id,
 			'post_type'    => $this->kintone_to_wp_reflect_post_type,
 			'post_title'   => $post_title,
 			'post_content' => $post_contents,
 		);
 
-		$post_id = wp_update_post( $my_post );
-		if ( is_wp_error( $post_id ) ) {
-			$errors = $post_id->get_error_messages();
-			foreach ( $errors as $error ) {
-				error_log( var_export( $error, true ) );
+		/**
+		 * Filters Change Post's parameter from kintone information.
+		 *
+		 * @param array $insert_post_data .
+		 * @param array $kintone_data .
+		 *
+		 * @since 1.10.0
+		 */
+		$update_post_data = apply_filters( 'import_kintone_update_post_data', $update_post_data, $kintone_data );
+
+		$post_id = null;
+		if ( ! empty( $update_post_data ) ) {
+			$post_id = wp_update_post( $update_post_data, true );
+			if ( is_wp_error( $post_id ) ) {
+				$errors = $post_id->get_error_messages();
+				foreach ( $errors as $error ) {
+					error_log( var_export( $error, true ) );
+				}
 			}
 		}
+		do_action( 'import_kintone_after_update_post_data', $update_post_data, $kintone_data );
+
+		return $post_id;
 
 	}
 
@@ -387,7 +404,16 @@ class Publish_Kintone_Data {
 			foreach ( $kintone_field_code_for_terms as $key => $kintone_field_code_for_term ) {
 
 				if ( isset( $kintone_data['record'][ $kintone_field_code_for_term ] ) ) {
-					$terms = $kintone_data['record'][ $kintone_field_code_for_term ]['value'];
+
+					$terms = array();
+					if ( 'USER_SELECT' === $kintone_data['record'][ $kintone_field_code_for_term ]['type'] ) {
+
+						foreach ( $kintone_data['record'][ $kintone_field_code_for_term ]['value'] as $user ) {
+							$terms[] = $user['name'];
+						}
+					} else {
+						$terms = $kintone_data['record'][ $kintone_field_code_for_term ]['value'];
+					}
 
 					if ( ! is_array( $terms ) ) {
 						$terms = array( $terms );
