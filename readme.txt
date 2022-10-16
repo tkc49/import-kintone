@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 5.9
-Stable tag: 1.12.0
+Stable tag: 1.12.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,12 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.12.1 =
+Release Date: October 16th, 2022
+
+* [Fixed] Modified to return if there is an error when a record in kintone is deleted.
+
 
 = 1.12.0 =
 Release Date: October 10th, 2022

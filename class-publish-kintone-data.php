@@ -95,7 +95,11 @@ class Publish_Kintone_Data {
 			}
 		}
 
-		$this->sync( $kintone_data_by_webhook );
+		$resp = $this->sync( $kintone_data_by_webhook );
+		if(is_wp_error($resp)){
+			header( 'HTTP/1.1 503 Service Unavailable' );
+			exit;
+		}
 
 		header( 'Content-Type: application/json; charset=utf-8' );
 		echo wp_json_encode( '{}' );
@@ -123,8 +127,7 @@ class Publish_Kintone_Data {
 		// WordPressの投稿を削除.
 		if ( isset( $kintoen_data['type'] ) && 'DELETE_RECORD' === $kintoen_data['type'] ) {
 			$kintone_id = $kintoen_data['recordId'];
-			$this->delete( $kintone_id, $kintoen_data );
-			return;
+			return $this->delete( $kintone_id );
 		}
 
 		$kintoen_data['kintone_to_wp_status'] = 'normal';
@@ -580,14 +583,16 @@ class Publish_Kintone_Data {
 		@unlink( $tmp_dir . '/' . $tmp_filename );
 
 	}
+
 	/**
 	 * Kintoneのレコードが削除されたので、WordPressの記事を削除する
 	 *
-	 * @param string $record_id .
-	 * @param array  $update_kintone_data .
-	 * @return void
+	 * @param $record_id int .
+	 * @param $update_kintone_data array .
+	 *
+	 * @return array|false|mixed|\WP_Error|\WP_Post|null
 	 */
-	private function delete( $record_id, $update_kintone_data ) {
+	private function delete( $record_id ) {
 
 		$args      = array(
 			'post_type'   => $this->kintone_to_wp_reflect_post_type,
@@ -597,11 +602,16 @@ class Publish_Kintone_Data {
 		);
 		$the_query = new WP_Query( $args );
 		if ( $the_query->have_posts() ) {
-			wp_delete_post( $the_query->post->ID );
+			return wp_delete_post( $the_query->post->ID );
 		} else {
+
 			// 削除できなかったらアプリコード付きで削除する.
-			$url              = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/app.json?id=' . $update_kintone_data['app']['id'];
+			$url              = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/app.json?id=' . get_option( 'kintone_to_wp_target_appid' );
 			$kintone_app_data = Kintone_Utility::kintone_api( $url, $this->kintone_to_wp_kintone_api_token );
+
+			if(is_wp_error($kintone_app_data)){
+				return $kintone_app_data;
+			}
 
 			if ( $kintone_app_data['code'] ) {
 				$args      = array(
@@ -612,10 +622,11 @@ class Publish_Kintone_Data {
 				);
 				$the_query = new WP_Query( $args );
 				if ( $the_query->have_posts() ) {
-					wp_delete_post( $the_query->post->ID );
+					return wp_delete_post( $the_query->post->ID );
 				}
 			}
 		}
+		return null;
 	}
 
 	/**
