@@ -140,12 +140,10 @@ class Publish_Kintone_Data {
 		$post_id = '';
 
 		if ( ! empty( $kintoen_data ) ) {
-			$kintone_record_number = $this->get_kintone_record_number( $kintoen_data );
-
 			$args      = array(
 				'post_type'   => $this->kintone_to_wp_reflect_post_type,
 				'meta_key'    => 'kintone_record_id',
-				'meta_value'  => $kintone_record_number,
+				'meta_value'  => $kintoen_data['record']['$id']['value'],
 				'post_status' => array( 'publish', 'pending', 'draft', 'future', 'private' ),
 			);
 			$the_query = new WP_Query( $args );

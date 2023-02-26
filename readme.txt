@@ -2,8 +2,8 @@
 Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
-Tested up to: 5.9
-Stable tag: 1.12.1
+Tested up to: 6.1.1
+Stable tag: 1.12.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,9 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.12.2 (2023-02-26) =
+Fix a bug that can't update when using app code.
 
 = 1.12.1 =
 Release Date: October 16th, 2022
