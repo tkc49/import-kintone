@@ -109,13 +109,14 @@ class Admin{
 		echo '			WordPress Post Type:<select name="kintone_to_wp_reflect_post_type">';
 		echo '				<option value=""></option>';
 		echo '				<option ' . selected( $reflect_post_type, "post", false ) . ' value="post">post</option>';
+		echo '				<option ' . selected( $reflect_post_type, "page", false ) . ' value="page">page</option>';
 		echo $this->get_html_post_type_form_slect_option( $reflect_post_type );
 		echo '			</select>';
 		echo '		</td>';
 		echo '	</tr>';
 		echo '	</table>';
 
-		echo '<p class="submit"><input type="submit" name="get_kintone_fields" class="button-primary" value="Get kintone fields" /></p>';
+		echo '<p class="submit"><input type="submit" name="get_kintone_fields" class="button-primary" value="Save the above settings and retrieve the field information in kintone" /></p>';
 
 		echo '</form>';
 
@@ -188,7 +189,7 @@ class Admin{
 			echo '	</tr>';
 			echo '</table>';
 
-			echo '<p class="submit"><input type="submit" name="save" class="button-primary" value="save" /></p>';
+			echo '<p class="submit"><input type="submit" name="save" class="button-primary" value="Save the association between the Custom field and the kintone field" /></p>';
 			echo '<p class="submit"><input type="submit" name="bulk_update" class="button-primary" value="Bulk Update" /></p>';
 			echo '</form>';
 
@@ -250,6 +251,30 @@ class Admin{
 	}
 	private function bulk_update() {
 
+		// 一旦全記事を下書きにする
+		$post_type = apply_filters( 'publish_kintone_data_reflect_post_type', get_option( 'kintone_to_wp_reflect_post_type' ), 'bulk_update' );
+		$args      = array(
+			'post_type'      => $post_type,
+			'posts_per_page' => -1,
+			'post_status'    => 'publish',
+		);
+		// The Query
+		$the_query = new \WP_Query( $args );
+		if ( $the_query->have_posts() ) {
+			while ( $the_query->have_posts() ) {
+				$the_query->the_post();
+				// 下書きに更新する
+				wp_update_post(
+					array(
+						'ID'          => get_the_ID(),
+						'post_status' => 'draft',
+					)
+				);
+			}
+			/* Restore original Post Data */
+			wp_reset_postdata();
+		}
+
 		$kintone_data['records'] = array();
 
 		$offset             = 0;
@@ -257,7 +282,9 @@ class Admin{
 
 		while ( $reacquisition_flag ) {
 
-			$url        = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/records.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&query=order by $id asc limit 500 offset ' . $offset;
+			$query = apply_filters( 'import_kintone_change_bulk_update_query', 'order by $id asc limit 500 offset ' . $offset );
+
+			$url        = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/records.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&query=' . $query;
 			$retun_data = Kintone_Utility::kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
 
 			$kintone_data['records'] = array_merge( $kintone_data['records'], $retun_data['records'] );
