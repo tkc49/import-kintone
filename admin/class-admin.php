@@ -276,23 +276,22 @@ class Admin{
 		}
 
 		$kintone_data['records'] = array();
-
-		$offset             = 0;
+		$last_id = 0;
 		$reacquisition_flag = true;
 
 		while ( $reacquisition_flag ) {
 
-			$query = apply_filters( 'import_kintone_change_bulk_update_query', 'order by $id asc limit 500 offset ' . $offset );
+			$query = apply_filters( 'import_kintone_change_bulk_update_query', '$id > ' . $last_id . ' order by $id asc limit 500');
 
 			$url        = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/records.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&query=' . $query;
 			$retun_data = Kintone_Utility::kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
 
 			$kintone_data['records'] = array_merge( $kintone_data['records'], $retun_data['records'] );
 
-			if ( count( $kintone_data['records'] ) < 500 ) {
+			if ( count( $retun_data['records'] ) < 500 ) {
 				$reacquisition_flag = false;
 			} else {
-				$offset = $offset + 500;
+				$last_id = end($retun_data['records'])['$id']['value'];
 			}
 		}
 
