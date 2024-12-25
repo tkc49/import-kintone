@@ -3,12 +3,14 @@
  * Plugin Name: Publish kintone data
  * Plugin URI:
  * Description: The data of kintone can be reflected on WordPress.
- * Version:     1.13.1
+ * Version:     1.14.0
  * Author:      Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:     GPLv2
  * Text Domain: kintone-to-wp
  * Domain Path: /languages
+ *
+ * @package import-kintone
  */
 
 /**
@@ -32,11 +34,14 @@
 namespace publish_kintone_data;
 
 define( 'KINTONE_TO_WP_URL', plugins_url( '', __FILE__ ) );
-define( 'KINTONE_TO_WP_PATH', dirname( __FILE__ ) );
+define( 'KINTONE_TO_WP_PATH', __DIR__ );
 
-$data          = get_file_data(
+$data = get_file_data(
 	__FILE__,
-	array( 'ver' => 'Version', 'langs' => 'Domain Path' )
+	array(
+		'ver'   => 'Version',
+		'langs' => 'Domain Path',
+	)
 );
 
 define( 'KINTONE_TO_WP_VERSION', $data['ver'] );
@@ -47,8 +52,12 @@ load_plugin_textdomain(
 	dirname( plugin_basename( __FILE__ ) ) . KINTONE_TO_WP_LANGS
 );
 
-
-function init(){
+/**
+ * Initialize the plugin.
+ *
+ * @return void
+ */
+function init() {
 	require_once KINTONE_TO_WP_PATH . '/inc/class-kintone-utility.php';
 
 	require_once KINTONE_TO_WP_PATH . '/admin/class-admin.php';
