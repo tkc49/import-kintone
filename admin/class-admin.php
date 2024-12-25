@@ -1,21 +1,59 @@
 <?php
+/**
+ * Admin class
+ *
+ * @package import-kintone
+ */
+
 namespace publish_kintone_data;
 
-class Admin{
+/**
+ * Admin class
+ *
+ * @package import-kintone
+ */
+class Admin {
 
-	private $nonce   = 'kintone_to_wp_';
+	/**
+	 * Nonce
+	 *
+	 * @var string
+	 */
+	private $nonce = 'kintone_to_wp_';
 
-	public function __construct(){
+	/**
+	 * Constructor
+	 *
+	 * @return void
+	 */
+	public function __construct() {
 		// Create Admin Menu.
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10, 3 );
 	}
+	/**
+	 * Admin menu
+	 *
+	 * @return void
+	 */
 	public function admin_menu() {
-		add_submenu_page( 'options-general.php', 'Publish kintone data', 'Publish kintone data', 'manage_options', 'publish-kintone-data-setting', array(
-			$this,
-			'kintone_to_wp_setting'
-		) );
+		add_submenu_page(
+			'options-general.php',
+			'Publish kintone data',
+			'Publish kintone data',
+			'manage_options',
+			'publish-kintone-data-setting',
+			array(
+				$this,
+				'kintone_to_wp_setting',
+			)
+		);
 	}
+	/**
+	 * Kintone to WP setting
+	 *
+	 * @return void
+	 */
 	public function kintone_to_wp_setting() {
 
 		if ( ! empty( $_POST ) && check_admin_referer( $this->nonce ) ) {
@@ -24,17 +62,17 @@ class Admin{
 
 				$kintone_basci_information = array();
 
-				$kintone_basci_information['domain']    = sanitize_text_field( trim( $_POST['kintone_to_wp_kintone_url'] ) );
-				$kintone_basci_information['app_id']    = sanitize_text_field( trim( $_POST['kintone_to_wp_target_appid'] ) );
+				$kintone_basci_information['domain']    = isset( $_POST['kintone_to_wp_kintone_url'] ) ? sanitize_text_field( wp_unslash( $_POST['kintone_to_wp_kintone_url'] ) ) : '';
+				$kintone_basci_information['app_id']    = isset( $_POST['kintone_to_wp_target_appid'] ) ? sanitize_text_field( wp_unslash( $_POST['kintone_to_wp_target_appid'] ) ) : '';
 				$kintone_basci_information['url']       = 'https://' . $kintone_basci_information['domain'] . '/k/v1/form.json?app=' . $kintone_basci_information['app_id'];
-				$kintone_basci_information['token']     = sanitize_text_field( trim( $_POST['kintone_to_wp_kintone_api_token'] ) );
-				$kintone_basci_information['post_type'] = sanitize_text_field( trim( $_POST['kintone_to_wp_reflect_post_type'] ) );
+				$kintone_basci_information['token']     = isset( $_POST['kintone_to_wp_kintone_api_token'] ) ? sanitize_text_field( wp_unslash( $_POST['kintone_to_wp_kintone_api_token'] ) ) : '';
+				$kintone_basci_information['post_type'] = isset( $_POST['kintone_to_wp_reflect_post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['kintone_to_wp_reflect_post_type'] ) ) : '';
 
 				$error_flg = false;
 				if ( ! $kintone_basci_information['domain'] ) {
 					echo '<div class="error notice is-dismissible"><p><strong>Domain is required</strong></p></div>';
 					$error_flg = true;
-				} else if ( ! $kintone_basci_information['post_type'] ) {
+				} elseif ( ! $kintone_basci_information['post_type'] ) {
 					echo '<div class="error notice is-dismissible"><p><strong>Post type is required</strong></p></div>';
 					$error_flg = true;
 				}
@@ -51,22 +89,27 @@ class Admin{
 
 				$kintone_app_fields_code_for_wp = array();
 				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_post_title'] ) ) {
-					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title'] = sanitize_text_field( $_POST['kintone_to_wp_kintone_field_code_for_post_title'] );
+					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title'] = sanitize_text_field( wp_unslash( $_POST['kintone_to_wp_kintone_field_code_for_post_title'] ) );
 				}
 				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_post_contents'] ) ) {
-					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_contents'] = sanitize_text_field( $_POST['kintone_to_wp_kintone_field_code_for_post_contents'] );
+					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_contents'] = sanitize_text_field( wp_unslash( $_POST['kintone_to_wp_kintone_field_code_for_post_contents'] ) );
 				}
 				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_terms'] ) && is_array( $_POST['kintone_to_wp_kintone_field_code_for_terms'] ) ) {
-					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] = $_POST['kintone_to_wp_kintone_field_code_for_terms'];
+					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_terms'] = array_map(
+						'sanitize_text_field',
+						array_map( 'wp_unslash', $_POST['kintone_to_wp_kintone_field_code_for_terms'] )
+					);
 				}
 				if ( isset( $_POST['kintone_to_wp_kintone_field_code_for_featured_image'] ) ) {
-					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_featured_image'] = sanitize_text_field( $_POST['kintone_to_wp_kintone_field_code_for_featured_image'] );
+					$kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_featured_image'] = sanitize_text_field( wp_unslash( $_POST['kintone_to_wp_kintone_field_code_for_featured_image'] ) );
 				}
 
 				if ( isset( $_POST['kintone_to_wp_setting_custom_fields'] ) && is_array( $_POST['kintone_to_wp_setting_custom_fields'] ) ) {
-					$kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields'] = $_POST['kintone_to_wp_setting_custom_fields'];
+					$kintone_app_fields_code_for_wp['kintone_to_wp_setting_custom_fields'] = array_map(
+						'sanitize_text_field',
+						array_map( 'wp_unslash', $_POST['kintone_to_wp_setting_custom_fields'] )
+					);
 				}
-
 
 				$this->update_kintone_app_fields_code_for_wp( $kintone_app_fields_code_for_wp );
 
@@ -75,11 +118,9 @@ class Admin{
 				$this->bulk_update();
 
 			}
-
 		}
 
 		$wp_n = wp_nonce_field( $this->nonce );
-
 
 		$kintone_url           = get_option( 'kintone_to_wp_kintone_url' );
 		$api_token             = get_option( 'kintone_to_wp_kintone_api_token' );
@@ -91,26 +132,27 @@ class Admin{
 
 		echo '<h2>Setting Publish kintone data</h2>';
 		echo '<form method="post" action="">';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $wp_n;
 
 		echo '<table class="form-table">';
 		echo '	<tr valign="top">';
 		echo '		<th scope="row"><label for="add_text">kintone domain</label></th>';
-		echo '		<td><input name="kintone_to_wp_kintone_url" type="text" id="kintone_to_wp_kintone_url" value="' . ( $kintone_url == "" ? "" : esc_textarea( $kintone_url ) ) . '" class="regular-text" /></td>';
+		echo '		<td><input name="kintone_to_wp_kintone_url" type="text" id="kintone_to_wp_kintone_url" value="' . ( '' === $kintone_url ? '' : esc_textarea( $kintone_url ) ) . '" class="regular-text" /></td>';
 		echo '	</tr>';
 		echo '	<tr valign="top">';
 		echo '		<th scope="row"><label for="add_text">API Token</label><br><span style="font-size:10px;">Permission: show record</span></th>';
-		echo '		<td><input name="kintone_to_wp_kintone_api_token" type="text" id="kintone_to_wp_kintone_api_token" value="' . ( $api_token == "" ? "" : esc_textarea( $api_token ) ) . '" class="regular-text" /></td>';
+		echo '		<td><input name="kintone_to_wp_kintone_api_token" type="text" id="kintone_to_wp_kintone_api_token" value="' . ( '' === $api_token ? '' : esc_textarea( $api_token ) ) . '" class="regular-text" /></td>';
 		echo '	</tr>';
 		echo '	<tr valign="top">';
 		echo '		<th scope="row"><label for="add_text">Reflect kintone to post_type</label></th>';
 		echo '		<td>';
-		echo '			kintone APP ID:<input name="kintone_to_wp_target_appid" type="text" id="kintone_to_wp_target_appid" value="' . ( $target_appid == "" ? "" : esc_textarea( $target_appid ) ) . '" class="small-text" /> ->';
+		echo '			kintone APP ID:<input name="kintone_to_wp_target_appid" type="text" id="kintone_to_wp_target_appid" value="' . ( '' === $target_appid ? '' : esc_textarea( $target_appid ) ) . '" class="small-text" /> ->';
 		echo '			WordPress Post Type:<select name="kintone_to_wp_reflect_post_type">';
 		echo '				<option value=""></option>';
-		echo '				<option ' . selected( $reflect_post_type, "post", false ) . ' value="post">post</option>';
-		echo '				<option ' . selected( $reflect_post_type, "page", false ) . ' value="page">page</option>';
-		echo $this->get_html_post_type_form_slect_option( $reflect_post_type );
+		echo '				<option ' . selected( $reflect_post_type, 'post', false ) . ' value="post">post</option>';
+		echo '				<option ' . selected( $reflect_post_type, 'page', false ) . ' value="page">page</option>';
+		echo $this->get_html_post_type_form_slect_option( $reflect_post_type ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '			</select>';
 		echo '		</td>';
 		echo '	</tr>';
@@ -125,29 +167,27 @@ class Admin{
 		if ( isset( $kintone_form_data ) ) {
 
 			if ( is_wp_error( $kintone_form_data ) ) {
-				// Error
+				// Error.
 				if ( ! empty( $old_kintone_data ) ) {
 					$disp_data = $old_kintone_data;
 				}
 			} else {
-				// Success
+				// Success.
 				$disp_data = $kintone_form_data;
 			}
-		} else {
-			// Nothing
-			if ( ! empty( $old_kintone_data ) ) {
-				$disp_data = $old_kintone_data;
-			}
+		} elseif ( ! empty( $old_kintone_data ) ) {
+			// Nothing.
+			$disp_data = $old_kintone_data;
 		}
 
 		if ( ! empty( $disp_data ) ) {
 
-
 			echo '<form method="post" action="">';
 
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo $wp_n;
 
-			echo 'Please set this URL to kintone\'s WEBHOOK-><strong>' . site_url( '/wp-admin/admin-ajax.php?action=kintone_to_wp_start' ) . '</strong><br><span style="font-size:10px;">Permission: post record, update record, delete record</span>';
+			echo 'Please set this URL to kintone\'s WEBHOOK-><strong>' . esc_url( site_url( '/wp-admin/admin-ajax.php?action=kintone_to_wp_start' ) ) . '</strong><br><span style="font-size:10px;">Permission: post record, update record, delete record</span>';
 			echo '<br/>';
 			echo '<br/>';
 			echo '	<table>';
@@ -155,7 +195,7 @@ class Admin{
 			echo '		<th scope="row"><label for="add_text">Select Post title</label></th>';
 			echo '		<td>';
 			echo '			<select name="kintone_to_wp_kintone_field_code_for_post_title">';
-			echo $this->get_html_post_title_form_select_option( $disp_data );
+			echo $this->get_html_post_title_form_select_option( $disp_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo '			</select>';
 			echo '		</td>';
 			echo '	</tr>';
@@ -163,28 +203,28 @@ class Admin{
 			echo '		<th scope="row"><label for="add_text">Select Post contents</label></th>';
 			echo '		<td>';
 			echo '			<select name="kintone_to_wp_kintone_field_code_for_post_contents">';
-			echo $this->get_html_post_contents_form_select_option( $disp_data );
+			echo $this->get_html_post_contents_form_select_option( $disp_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo '			</select>';
 			echo '		</td>';
 			echo '	</tr>';
 			echo '	<tr valign="top">';
 			echo '		<th scope="row"><label for="add_text">Select Term</label></th>';
 			echo '		<td>';
-			echo $this->get_html_taxonomy_form_select( $disp_data, $reflect_post_type );
+			echo $this->get_html_taxonomy_form_select( $disp_data, $reflect_post_type ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo '		</td>';
 			echo '	</tr>';
 			echo '	<tr valign="top">';
 			echo '		<th scope="row"><label for="add_text">Select Featured image</label></th>';
 			echo '		<td>';
 			echo '			<select name="kintone_to_wp_kintone_field_code_for_featured_image">';
-			echo $this->get_html_featured_image_form_select_option( $disp_data );
+			echo $this->get_html_featured_image_form_select_option( $disp_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo '			</select>';
 			echo '		</td>';
 			echo '	</tr>';
 			echo '	<tr valign="top">';
 			echo '		<th scope="row"><label for="add_text">Setting Custom Field</label></th>';
 			echo '		<td>';
-			echo $this->get_html_custom_field_form_input( $disp_data );
+			echo $this->get_html_custom_field_form_input( $disp_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			echo '		</td>';
 			echo '	</tr>';
 			echo '</table>';
@@ -196,7 +236,6 @@ class Admin{
 		}
 
 		echo '</div>';
-
 	}
 	/**
 	 * 管理画面から記事を保存した時に実行する.
@@ -245,25 +284,29 @@ class Admin{
 		$url                                = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/record.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&id=' . $kintone_id;
 		$retun_data                         = Kintone_Utility::kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
 		$retun_data['kintone_to_wp_status'] = 'normal';
-		$publish_kintone_data = new Publish_Kintone_Data();
+		$publish_kintone_data               = new Publish_Kintone_Data();
 		$publish_kintone_data->sync( $retun_data );
-
 	}
+	/**
+	 * Bulk update.
+	 *
+	 * @return void
+	 */
 	public function bulk_update() {
 
-		// 一旦全記事を下書きにする
+		// 一旦全記事を下書きにする.
 		$post_type = apply_filters( 'publish_kintone_data_reflect_post_type', get_option( 'kintone_to_wp_reflect_post_type' ), 'bulk_update' );
 		$args      = array(
 			'post_type'      => $post_type,
 			'posts_per_page' => -1,
 			'post_status'    => 'publish',
 		);
-		// The Query
+
 		$the_query = new \WP_Query( $args );
 		if ( $the_query->have_posts() ) {
 			while ( $the_query->have_posts() ) {
 				$the_query->the_post();
-				// 下書きに更新する
+				// 下書きに更新する.
 				wp_update_post(
 					array(
 						'ID'          => get_the_ID(),
@@ -276,12 +319,12 @@ class Admin{
 		}
 
 		$kintone_data['records'] = array();
-		$last_id = 0;
-		$reacquisition_flag = true;
+		$last_id                 = 0;
+		$reacquisition_flag      = true;
 
 		while ( $reacquisition_flag ) {
 
-			$query = apply_filters( 'import_kintone_change_bulk_update_query', '$id > ' . $last_id . ' order by $id asc limit 500');
+			$query = apply_filters( 'import_kintone_change_bulk_update_query', '$id > ' . $last_id . ' order by $id asc limit 500' );
 
 			$url        = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/records.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&query=' . $query;
 			$retun_data = Kintone_Utility::kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
@@ -291,7 +334,7 @@ class Admin{
 			if ( count( $retun_data['records'] ) < 500 ) {
 				$reacquisition_flag = false;
 			} else {
-				$last_id = end($retun_data['records'])['$id']['value'];
+				$last_id = end( $retun_data['records'] )['$id']['value'];
 			}
 		}
 
@@ -301,18 +344,24 @@ class Admin{
 			$data                         = array();
 			$data['record']               = $value;
 			$data['kintone_to_wp_status'] = 'normal';
-			$data['type'] = 'UPDATE_RECORD';
-			$data['app'] = array(
-				'id' => get_option( 'kintone_to_wp_target_appid' )
+			$data['type']                 = 'UPDATE_RECORD';
+			$data['app']                  = array(
+				'id' => get_option( 'kintone_to_wp_target_appid' ),
 			);
 			$data                         = apply_filters( 'kintone_to_wp_kintone_data', $data );
-			$publish_kintone_data = new Publish_Kintone_Data();
+			$publish_kintone_data         = new Publish_Kintone_Data();
 			$publish_kintone_data->sync( $data );
 		}
 
 		echo '<div class="updated fade"><p><strong>Updated</strong></p></div>';
-
 	}
+	/**
+	 * Update kintone app fields code for wp
+	 *
+	 * @param array $kintone_app_fields_code_for_wp .
+	 *
+	 * @return void
+	 */
 	private function update_kintone_app_fields_code_for_wp( $kintone_app_fields_code_for_wp ) {
 
 		if ( empty( $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_post_title'] ) ) {
@@ -344,12 +393,17 @@ class Admin{
 		} else {
 			update_option( 'kintone_to_wp_kintone_field_code_for_featured_image', $kintone_app_fields_code_for_wp['kintone_to_wp_kintone_field_code_for_featured_image'] );
 		}
-
 	}
 
-
+	/**
+	 * Update kintone basci information
+	 *
+	 * @param array $kintone_basci_information .
+	 * @param array $kintone_form_data .
+	 *
+	 * @return void
+	 */
 	private function update_kintone_basci_information( $kintone_basci_information, $kintone_form_data ) {
-
 
 		if ( empty( $kintone_basci_information['url'] ) ) {
 			delete_option( 'kintone_to_wp_kintone_url' );
@@ -375,7 +429,6 @@ class Admin{
 			update_option( 'kintone_to_wp_reflect_post_type', $kintone_basci_information['post_type'] );
 		}
 
-
 		if ( ! is_wp_error( $kintone_form_data ) ) {
 
 			if ( empty( $kintone_form_data ) ) {
@@ -386,14 +439,20 @@ class Admin{
 
 			echo '<div class="updated notice is-dismissible"><p><strong>Success</strong></p></div>';
 		}
-
 	}
 
+	/**
+	 * Get html custom field form input
+	 *
+	 * @param array $kintone_app_form_data .
+	 *
+	 * @return string
+	 */
 	private function get_html_custom_field_form_input( $kintone_app_form_data ) {
 
-		$html_setting_custom_fields = "";
+		$html_setting_custom_fields  = '';
 		$html_setting_custom_fields .= '<table>';
-		$setting_custom_fields      = get_option( 'kintone_to_wp_setting_custom_fields' );
+		$setting_custom_fields       = get_option( 'kintone_to_wp_setting_custom_fields' );
 
 		foreach ( $kintone_app_form_data['properties'] as $kintone_form_value ) {
 			$input_val = '';
@@ -410,9 +469,9 @@ class Admin{
 
 			if ( array_key_exists( 'code', $kintone_form_value ) ) {
 				$html_setting_custom_fields .= '<tr>';
-				if ( $kintone_form_value['type'] == 'RECORD_NUMBER' ) {
+				if ( 'RECORD_NUMBER' === $kintone_form_value['type'] ) {
 
-					$html_setting_custom_fields .= '<th>' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</th><td><input readonly="readonly" type="text" name="kintone_to_wp_setting_custom_fields[' . esc_attr( $kintone_form_value['code'] ) . ']" value="kintone_record_id" class="regular-text" /></td>';
+					$html_setting_custom_fields .= '<th>' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')</th><td><input readonly="readonly" type="text" name="kintone_to_wp_setting_custom_fields[' . esc_attr( $kintone_form_value['code'] ) . ']" value="kintone_record_id" class="regular-text" /></td>';
 
 				} else {
 
@@ -421,24 +480,29 @@ class Admin{
 						$label = $kintone_form_value['label'];
 					}
 
-					$html_setting_custom_fields .= '<th>' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</th><td><input type="text" name="kintone_to_wp_setting_custom_fields[' . esc_attr( $kintone_form_value['code'] ) . ']" value="' . esc_attr( $input_val ) . '" class="regular-text" /></td>';
+					$html_setting_custom_fields .= '<th>' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')</th><td><input type="text" name="kintone_to_wp_setting_custom_fields[' . esc_attr( $kintone_form_value['code'] ) . ']" value="' . esc_attr( $input_val ) . '" class="regular-text" /></td>';
 
 				}
 				$html_setting_custom_fields .= '</tr>';
 			}
-
 		}
 		$html_setting_custom_fields .= '</table>';
 
 		return $html_setting_custom_fields;
-
 	}
 
+	/**
+	 * Get html post type form slect option
+	 *
+	 * @param string $reflect_post_type .
+	 *
+	 * @return string
+	 */
 	private function get_html_post_type_form_slect_option( $reflect_post_type ) {
 
 		$args       = array(
 			'public'   => true,
-			'_builtin' => false
+			'_builtin' => false,
 		);
 		$post_types = get_post_types( $args, 'names' );
 
@@ -448,9 +512,15 @@ class Admin{
 		}
 
 		return $html_option;
-
 	}
 
+	/**
+	 * Get html featured image form select option
+	 *
+	 * @param array $kintone_app_form_data .
+	 *
+	 * @return string
+	 */
 	private function get_html_featured_image_form_select_option( $kintone_app_form_data ) {
 
 		$html_select_featured_image            = '';
@@ -467,14 +537,20 @@ class Admin{
 					$label = $kintone_form_value['label'];
 				}
 
-				$html_select_featured_image .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_featured_image, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
+				$html_select_featured_image .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_featured_image, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')</option>';
 			}
-
 		}
 
 		return $html_select_featured_image;
 	}
 
+	/**
+	 * Get html post title form select option
+	 *
+	 * @param array $kintone_app_form_data .
+	 *
+	 * @return string
+	 */
 	private function get_html_post_title_form_select_option( $kintone_app_form_data ) {
 
 		$html_select_post_title            = '';
@@ -491,15 +567,20 @@ class Admin{
 					$label = $kintone_form_value['label'];
 				}
 
-				$html_select_post_title .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_post_title, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
+				$html_select_post_title .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_post_title, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')</option>';
 			}
-
 		}
 
 		return $html_select_post_title;
-
 	}
 
+	/**
+	 * Get html post contents form select option
+	 *
+	 * @param array $kintone_app_form_data .
+	 *
+	 * @return string
+	 */
 	private function get_html_post_contents_form_select_option( $kintone_app_form_data ) {
 		$html_select_post_contents            = '';
 		$kintone_field_code_for_post_contents = get_option( 'kintone_to_wp_kintone_field_code_for_post_contents' );
@@ -515,18 +596,25 @@ class Admin{
 					$label = $kintone_form_value['label'];
 				}
 
-				$html_select_post_contents .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_post_contents, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
+				$html_select_post_contents .= '<option ' . selected( $kintone_form_value['code'], $kintone_field_code_for_post_contents, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $label ) . '(' . esc_html( $kintone_form_value['code'] ) . ')</option>';
 			}
-
 		}
 
 		return $html_select_post_contents;
 	}
 
 
+	/**
+	 * Get html taxonomy form select
+	 *
+	 * @param array  $kintone_app_form_data .
+	 * @param string $reflect_post_type .
+	 *
+	 * @return string
+	 */
 	private function get_html_taxonomy_form_select( $kintone_app_form_data, $reflect_post_type ) {
 
-		// Category
+		// Category.
 		$terms = get_taxonomies(
 			array(),
 			'objects'
@@ -538,7 +626,7 @@ class Admin{
 
 			if ( in_array( $reflect_post_type, $term->object_type ) ) {
 
-				$html_select_term             .= $term->label . '-><select name="kintone_to_wp_kintone_field_code_for_terms[' . $term->name . ']">';
+				$html_select_term            .= $term->label . '-><select name="kintone_to_wp_kintone_field_code_for_terms[' . $term->name . ']">';
 				$kintone_field_code_for_terms = get_option( 'kintone_to_wp_kintone_field_code_for_terms' );
 
 				$html_select_term .= '<option value=""></option>';
@@ -556,7 +644,7 @@ class Admin{
 					}
 
 					if ( array_key_exists( 'code', $kintone_form_value ) ) {
-						$html_select_term .= '<option ' . selected( $kintone_form_value['code'], $input_val, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')' . '</option>';
+						$html_select_term .= '<option ' . selected( $kintone_form_value['code'], $input_val, false ) . ' value="' . esc_attr( $kintone_form_value['code'] ) . '">' . esc_html( $kintone_form_value['label'] ) . '(' . esc_html( $kintone_form_value['code'] ) . ')</option>';
 					}
 				}
 
@@ -565,8 +653,15 @@ class Admin{
 		}
 
 		return $html_select_term;
-
 	}
+
+	/**
+	 * Get kintone id without appcode
+	 *
+	 * @param string $id .
+	 *
+	 * @return string
+	 */
 	private function get_kintone_id_without_appcode( $id ) {
 
 		if ( empty( $id ) ) {
@@ -581,6 +676,5 @@ class Admin{
 		}
 
 		return $id;
-
 	}
 }
