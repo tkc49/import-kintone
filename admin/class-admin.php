@@ -249,7 +249,7 @@ class Admin{
 		$publish_kintone_data->sync( $retun_data );
 
 	}
-	private function bulk_update() {
+	public function bulk_update() {
 
 		// 一旦全記事を下書きにする
 		$post_type = apply_filters( 'publish_kintone_data_reflect_post_type', get_option( 'kintone_to_wp_reflect_post_type' ), 'bulk_update' );
