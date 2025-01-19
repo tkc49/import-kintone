@@ -66,7 +66,6 @@ class Publish_Kintone_Data {
 		// Webhook.
 		add_action( 'wp_ajax_kintone_to_wp_start', array( $this, 'kintone_to_wp_start' ) );
 		add_action( 'wp_ajax_nopriv_kintone_to_wp_start', array( $this, 'kintone_to_wp_start' ) );
-
 	}
 
 	/**
@@ -96,7 +95,7 @@ class Publish_Kintone_Data {
 		}
 
 		$resp = $this->sync( $kintone_data_by_webhook );
-		if(is_wp_error($resp)){
+		if ( is_wp_error( $resp ) ) {
 			header( 'HTTP/1.1 503 Service Unavailable' );
 			exit;
 		}
@@ -104,7 +103,6 @@ class Publish_Kintone_Data {
 		header( 'Content-Type: application/json; charset=utf-8' );
 		echo wp_json_encode( '{}' );
 		exit;
-
 	}
 
 	/**
@@ -184,7 +182,6 @@ class Publish_Kintone_Data {
 		}
 
 		add_filter( 'content_save_pre', 'wp_filter_post_kses' );
-
 	}
 
 	/**
@@ -264,7 +261,6 @@ class Publish_Kintone_Data {
 		}
 
 		return $post_id;
-
 	}
 
 	/**
@@ -276,12 +272,12 @@ class Publish_Kintone_Data {
 	 * @return int|null|WP_Error
 	 */
 	private function update_kintone_data_to_wp_post( $post_id, $kintone_data ) {
+		$_post = get_post( $post_id );
 
-		$post_title = '';
+		$post_title = $_post->post_title;
 		if ( ! empty( $this->kintone_to_wp_kintone_field_code_for_post_title ) && array_key_exists( $this->kintone_to_wp_kintone_field_code_for_post_title, $kintone_data['record'] ) ) {
 			$post_title = $kintone_data['record'][ $this->kintone_to_wp_kintone_field_code_for_post_title ]['value'];
 		}
-		$_post         = get_post( $post_id );
 		$post_contents = $_post->post_content;
 		if ( ! empty( $this->kintone_to_wp_kintone_field_code_for_post_contents ) && array_key_exists( $this->kintone_to_wp_kintone_field_code_for_post_contents, $kintone_data['record'] ) ) {
 			$post_contents = $kintone_data['record'][ $this->kintone_to_wp_kintone_field_code_for_post_contents ]['value'];
@@ -317,7 +313,6 @@ class Publish_Kintone_Data {
 		do_action( 'import_kintone_after_update_post_data', $update_post_data, $kintone_data );
 
 		return $post_id;
-
 	}
 
 	/**
@@ -457,7 +452,6 @@ class Publish_Kintone_Data {
 		$url = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/file.json?fileKey=' . $filekey;
 
 		return Kintone_Utility::kintone_api( $url, $this->kintone_to_wp_kintone_api_token, true );
-
 	}
 
 	/**
@@ -477,15 +471,13 @@ class Publish_Kintone_Data {
 				wp_delete_attachment( $attachment_id );
 				delete_post_thumbnail( $post_id );
 			}
-		} else {
-			if ( $kintone_fieldcode ) {
+		} elseif ( $kintone_fieldcode ) {
 				$attachment_id = get_post_meta( $post_id, $kintone_fieldcode, true );
-				if ( ! empty( $attachment_id ) ) {
+			if ( ! empty( $attachment_id ) ) {
 
-					wp_delete_attachment( $attachment_id );
-					delete_post_meta( $post_id, $kintone_fieldcode, $attachment_id );
+				wp_delete_attachment( $attachment_id );
+				delete_post_meta( $post_id, $kintone_fieldcode, $attachment_id );
 
-				}
 			}
 		}
 	}
@@ -563,14 +555,12 @@ class Publish_Kintone_Data {
 			}
 			set_post_thumbnail( $post_id, $aid );
 
-		} else {
-			if ( $post_meta_name ) {
+		} elseif ( $post_meta_name ) {
 				$attachment_id = get_post_meta( $post_id, $post_meta_name, true );
-				if ( ! empty( $attachment_id ) ) {
-					wp_delete_attachment( $attachment_id );  /*Delete previous image画像が増えていかないように*/
-				}
-				update_post_meta( $post_id, $post_meta_name, $aid );
+			if ( ! empty( $attachment_id ) ) {
+				wp_delete_attachment( $attachment_id );  /*Delete previous image画像が増えていかないように*/
 			}
+				update_post_meta( $post_id, $post_meta_name, $aid );
 		}
 
 		if ( ! is_wp_error( $aid ) ) {
@@ -579,7 +569,6 @@ class Publish_Kintone_Data {
 
 		// ディレクトリー削除.
 		@unlink( $tmp_dir . '/' . $tmp_filename );
-
 	}
 
 	/**
@@ -607,7 +596,7 @@ class Publish_Kintone_Data {
 			$url              = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/app.json?id=' . get_option( 'kintone_to_wp_target_appid' );
 			$kintone_app_data = Kintone_Utility::kintone_api( $url, $this->kintone_to_wp_kintone_api_token );
 
-			if(is_wp_error($kintone_app_data)){
+			if ( is_wp_error( $kintone_app_data ) ) {
 				return $kintone_app_data;
 			}
 
@@ -643,6 +632,5 @@ class Publish_Kintone_Data {
 		}
 
 		return $kintone_record_number;
-
 	}
 }
