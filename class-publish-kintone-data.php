@@ -128,6 +128,21 @@ class Publish_Kintone_Data {
 			return $this->delete( $kintone_id );
 		}
 
+		/*
+		 * レコードを取得できていないデータで先へ進ませない。
+		 *
+		 * kintone への問い合わせが失敗すると record が無いまま渡ってくることがある。
+		 * そのまま進むと、レコードIDが空の状態で既存記事を探しにいき、
+		 *   - 一致する記事があれば、その記事の kintone 由来の値をすべて空で上書きする
+		 *   - 一致しなければ、中身が空の記事を新規に作る
+		 * という壊れ方をする。どちらも復旧に手間がかかるので、ここで止める。
+		 *
+		 * 削除は record を持たず recordId で判定するため、上の分岐より後に置く.
+		 */
+		if ( ! isset( $kintoen_data['record']['$id']['value'] ) || '' === $kintoen_data['record']['$id']['value'] ) {
+			return;
+		}
+
 		$kintoen_data['kintone_to_wp_status'] = 'normal';
 		$kintoen_data                         = apply_filters( 'kintone_to_wp_kintone_data', $kintoen_data );
 
@@ -337,6 +352,19 @@ class Publish_Kintone_Data {
 
 			if ( $kintone_fieldcode ) {
 
+				/*
+				 * 対応付けたフィールドがレコードに無い場合は、WordPress 側の値に触らない。
+				 *
+				 * kintone でフィールドを消した、APIトークンの権限から外れた、といった理由で
+				 * レコードに含まれないことがある。以前はそのまま先へ進み、最後の else で
+				 * null を書き込んでいたため、meta_value が SQL の NULL になっていた。
+				 * NULL は meta_query の '=' でも 'NOT EXISTS' でも拾えないので、
+				 * 絞り込みから完全に消える記事ができてしまう.
+				 */
+				if ( ! isset( $kintone_data['record'][ $key ] ) ) {
+					continue;
+				}
+
 				if ( 'USER_SELECT' === $kintone_data['record'][ $key ]['type'] ) {
 
 					update_post_meta( $post_id, $kintone_fieldcode, $kintone_data['record'][ $key ]['value'] );
@@ -359,7 +387,16 @@ class Publish_Kintone_Data {
 
 				} elseif ( 'DATETIME' === $kintone_data['record'][ $key ]['type'] ) {
 
-					$value = date_i18n( 'Y-m-d H:i', strtotime( $kintone_data['record'][ $key ]['value'] ) + ( 9 * 60 * 60 ) );
+					/*
+					 * 未入力の日時をそのまま strtotime() に渡すと false が返り、
+					 * 9時間を足した結果が 1970-01-01 09:00 になる。過去の日付として
+					 * 扱われてしまうので、空のときは空のまま入れる.
+					 */
+					$datetime = $kintone_data['record'][ $key ]['value'];
+					$value    = '';
+					if ( ! empty( $datetime ) ) {
+						$value = date_i18n( 'Y-m-d H:i', strtotime( $datetime ) + ( 9 * 60 * 60 ) );
+					}
 					update_post_meta( $post_id, $kintone_fieldcode, $value );
 
 				} else {
@@ -435,6 +472,15 @@ class Publish_Kintone_Data {
 		if ( is_array( $record_data ) ) {
 
 			$record_data = implode( ',', $record_data );
+		}
+
+		/*
+		 * null のまま update_post_meta() へ渡すと meta_value が SQL の NULL になる。
+		 * NULL の行は meta_query の '=' でも 'NOT EXISTS' でも一致しないため、
+		 * その meta_key で絞り込む一覧からその記事だけが消える。空文字にしておく.
+		 */
+		if ( is_null( $record_data ) ) {
+			$record_data = '';
 		}
 
 		return $record_data;

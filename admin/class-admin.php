@@ -267,8 +267,6 @@ class Admin {
 			return;
 		}
 
-		remove_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10 );
-
 		$reflect_post_type = get_option( 'kintone_to_wp_reflect_post_type' );
 		if ( get_post_type( $post_id ) !== $reflect_post_type ) {
 			return;
@@ -281,11 +279,41 @@ class Admin {
 		}
 
 		// WordPress側で更新処理をされた場合、再度 kintoneからデータを取得して反映する（kintoneの情報が常に正しい）.
-		$url                                = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/record.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&id=' . $kintone_id;
-		$retun_data                         = Kintone_Utility::kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
+		$url        = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/record.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&id=' . $kintone_id;
+		$retun_data = Kintone_Utility::kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
+
+		/*
+		 * 取得できなかったときは何も書き換えずに終わる。
+		 *
+		 * kintone_api() は通信エラーと kintone のエラー応答で WP_Error を返し、
+		 * 応答が JSON として読めなかったときは null を返す。以前はどちらも
+		 * そのまま扱っていたため、WP_Error だと配列添字の代入で致命的エラーになり、
+		 * null だと record を持たないデータが同期に渡っていた。
+		 * 投稿の保存自体はこの時点で終わっているので、ここで止めれば実害はない.
+		 */
+		if ( is_wp_error( $retun_data ) ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( 'import-kintone: レコード %s の取得に失敗したため同期を中止しました。%s', $kintone_id, $retun_data->get_error_message() ) );
+			return;
+		}
+
+		if ( ! is_array( $retun_data ) || empty( $retun_data['record'] ) ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( 'import-kintone: レコード %s の応答を解釈できなかったため同期を中止しました。', $kintone_id ) );
+			return;
+		}
+
 		$retun_data['kintone_to_wp_status'] = 'normal';
 		$publish_kintone_data               = new Publish_Kintone_Data();
+
+		/*
+		 * sync() の中で wp_update_post() が走るため、自分自身を外して再帰を防ぐ。
+		 * 以前はこの関数の冒頭で外したまま戻していなかったので、同じリクエストで
+		 * 別の記事を保存しても同期されなくなっていた。終わったら必ず戻す.
+		 */
+		remove_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10 );
 		$publish_kintone_data->sync( $retun_data );
+		add_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10, 3 );
 	}
 	/**
 	 * Bulk update.
@@ -294,9 +322,53 @@ class Admin {
 	 */
 	public function bulk_update() {
 
-		// 一旦全記事を下書きにする.
 		$post_type = apply_filters( 'publish_kintone_data_reflect_post_type', get_option( 'kintone_to_wp_reflect_post_type' ), 'bulk_update' );
-		$args      = array(
+
+		/*
+		 * 先に kintone から全レコードを取得する。
+		 *
+		 * 以前は「全記事を下書きにする」→「取得する」の順だった。取得に失敗すると
+		 * 公開へ戻す処理まで辿り着けず、記事が全部下書きのまま残ってサイトから
+		 * 消えてしまう。取得が終わってから記事に触るようにする.
+		 */
+		$kintone_data['records'] = array();
+		$last_id                 = 0;
+		$reacquisition_flag      = true;
+
+		while ( $reacquisition_flag ) {
+
+			$query = apply_filters( 'import_kintone_change_bulk_update_query', '$id > ' . $last_id . ' order by $id asc limit 500' );
+
+			$url        = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/records.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&query=' . $query;
+			$retun_data = Kintone_Utility::kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
+
+			if ( is_wp_error( $retun_data ) || ! is_array( $retun_data ) || ! isset( $retun_data['records'] ) ) {
+				$message = is_wp_error( $retun_data ) ? $retun_data->get_error_message() : '応答を解釈できませんでした。';
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( 'import-kintone: 一括更新はレコードを取得できなかったため中止しました。' . $message );
+				echo '<div class="error fade"><p><strong>' . esc_html( '一括更新を中止しました。記事は変更していません。' . $message ) . '</strong></p></div>';
+				return;
+			}
+
+			$kintone_data['records'] = array_merge( $kintone_data['records'], $retun_data['records'] );
+
+			if ( count( $retun_data['records'] ) < 500 ) {
+				$reacquisition_flag = false;
+			} else {
+				$last_id = end( $retun_data['records'] )['$id']['value'];
+			}
+		}
+
+		/*
+		 * 一旦全記事を下書きにする。
+		 *
+		 * この wp_update_post() は save_post を発火させるので、外しておかないと
+		 * 1件ごとに update_post_kintone_data() が動き、レコードを1件ずつ取りに
+		 * いってしまう。このあとまとめて同期するので二重になる.
+		 */
+		remove_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10 );
+
+		$args = array(
 			'post_type'      => $post_type,
 			'posts_per_page' => -1,
 			'post_status'    => 'publish',
@@ -318,25 +390,7 @@ class Admin {
 			wp_reset_postdata();
 		}
 
-		$kintone_data['records'] = array();
-		$last_id                 = 0;
-		$reacquisition_flag      = true;
-
-		while ( $reacquisition_flag ) {
-
-			$query = apply_filters( 'import_kintone_change_bulk_update_query', '$id > ' . $last_id . ' order by $id asc limit 500' );
-
-			$url        = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/records.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&query=' . $query;
-			$retun_data = Kintone_Utility::kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
-
-			$kintone_data['records'] = array_merge( $kintone_data['records'], $retun_data['records'] );
-
-			if ( count( $retun_data['records'] ) < 500 ) {
-				$reacquisition_flag = false;
-			} else {
-				$last_id = end( $retun_data['records'] )['$id']['value'];
-			}
-		}
+		add_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10, 3 );
 
 		// @todo 一括更新は kintone でデータを削除したものは、WordPress側では削除されない。(Webhookを最初から使用しているとWebhookで削除はされるけど)
 		foreach ( $kintone_data['records'] as $key => $value ) {

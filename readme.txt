@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 6.4.2
-Stable tag: 1.14.1
+Stable tag: 1.14.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,14 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.14.2 (2026-08-31) =
+* [Fixed] Stop the sync instead of crashing when the kintone request fails. A WP_Error was used as an array, which caused a fatal error after the post had already been saved
+* [Fixed] Do not overwrite post meta when the response cannot be parsed as a record. It used to wipe every mapped custom field, or create an empty post
+* [Fixed] Leave post meta untouched for mapped fields that are missing from the record. It used to store SQL NULL, which matches neither `=` nor `NOT EXISTS` in a meta_query, so the post silently disappeared from filtered lists
+* [Fixed] Store an empty string for an empty DATETIME field. It used to store 1970-01-01 09:00
+* [Fixed] Fetch the kintone records before drafting the posts in bulk update. A failed request used to leave every post as a draft
+* [Fixed] Re-add the save_post callback after removing it, and skip the per-post sync while bulk update drafts the posts
 
 = 1.14.1 (2025-01-20) =
 * Fixed a bug where the original title would disappear when not linked with kintone
