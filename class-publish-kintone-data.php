@@ -146,7 +146,16 @@ class Publish_Kintone_Data {
 		$kintoen_data['kintone_to_wp_status'] = 'normal';
 		$kintoen_data                         = apply_filters( 'kintone_to_wp_kintone_data', $kintoen_data );
 
-		remove_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10 );
+		/*
+		 * この先の wp_insert_post() / wp_update_post() が save_post を発火させ、
+		 * Admin::update_post_kintone_data() が同じレコードを取り直して
+		 * sync() を呼び返してしまうため、止めておく。
+		 *
+		 * 以前は remove_action( 'save_post', array( $this, ... ) ) と書いていたが、
+		 * $this は Publish_Kintone_Data であって、実際にフックを登録しているのは
+		 * Admin のインスタンス。コールバックが一致しないので何も外れていなかった.
+		 */
+		$suspended = Admin::suspend_post_sync( true );
 		remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
 
 		$status  = '';
@@ -197,6 +206,7 @@ class Publish_Kintone_Data {
 		}
 
 		add_filter( 'content_save_pre', 'wp_filter_post_kses' );
+		Admin::suspend_post_sync( $suspended );
 	}
 
 	/**

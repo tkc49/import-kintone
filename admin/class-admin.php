@@ -22,6 +22,48 @@ class Admin {
 	private $nonce = 'kintone_to_wp_';
 
 	/**
+	 * 一括更新の AJAX で使う nonce のアクション名.
+	 *
+	 * @var string
+	 */
+	const BULK_UPDATE_NONCE_ACTION = 'kintone_to_wp_bulk_update';
+
+	/**
+	 * 一括更新の実行状態を保存するトランジェントのキー接頭辞.
+	 *
+	 * @var string
+	 */
+	const BULK_UPDATE_STATE_PREFIX = 'kintone_to_wp_bulk_update_';
+
+	/**
+	 * 一括更新で同期できた記事に刻む実行 ID のメタキー.
+	 *
+	 * @var string
+	 */
+	const BULK_UPDATE_RUN_META_KEY = '_kintone_to_wp_bulk_update_run';
+
+	/**
+	 * 一括更新中など、save_post 経由の同期を止めるためのフラグ.
+	 *
+	 * @var boolean
+	 */
+	private static $suspend_post_sync = false;
+
+	/**
+	 * 設定画面の hook suffix.
+	 *
+	 * @var string
+	 */
+	private $hook_suffix = '';
+
+	/**
+	 * 実行中の一括更新の ID. 同期できた記事に刻むために使う.
+	 *
+	 * @var string
+	 */
+	private $bulk_update_run_id = '';
+
+	/**
 	 * Constructor
 	 *
 	 * @return void
@@ -29,7 +71,30 @@ class Admin {
 	public function __construct() {
 		// Create Admin Menu.
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
 		add_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10, 3 );
+
+		// 一括更新のチャンク実行.
+		add_action( 'wp_ajax_kintone_to_wp_bulk_update_chunk', array( $this, 'bulk_update_chunk' ) );
+	}
+
+	/**
+	 * 同期を止める / 再開する（save_post 経由の再帰を防ぐ）.
+	 *
+	 * フックを remove_action() で外さないのは、CLI のように Admin を別インスタンスで new した場合に
+	 * コールバックの比較が一致せずフックが外れない。インスタンスに依存しない
+	 * 静的フラグで止める。入れ子で呼ばれても戻せるよう、直前の値を返す.
+	 *
+	 * @param boolean $suspend 止めるなら true.
+	 *
+	 * @return boolean 直前の値.
+	 */
+	public static function suspend_post_sync( $suspend ) {
+
+		$previous                = self::$suspend_post_sync;
+		self::$suspend_post_sync = (bool) $suspend;
+
+		return $previous;
 	}
 	/**
 	 * Admin menu
@@ -37,7 +102,7 @@ class Admin {
 	 * @return void
 	 */
 	public function admin_menu() {
-		add_submenu_page(
+		$this->hook_suffix = add_submenu_page(
 			'options-general.php',
 			'Publish kintone data',
 			'Publish kintone data',
@@ -115,7 +180,7 @@ class Admin {
 
 			} elseif ( isset( $_POST['bulk_update'] ) ) {
 
-				$this->bulk_update();
+				$this->render_bulk_update_panel();
 
 			}
 		}
@@ -246,6 +311,11 @@ class Admin {
 	 */
 	public function update_post_kintone_data( $post_id, $post, $update ) {
 
+		// 一括更新など、呼び出し側がまとめて同期している最中は何もしない.
+		if ( self::$suspend_post_sync ) {
+			return;
+		}
+
 		// Autosave, do nothing.
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return;
@@ -307,107 +377,530 @@ class Admin {
 		$publish_kintone_data               = new Publish_Kintone_Data();
 
 		/*
-		 * sync() の中で wp_update_post() が走るため、自分自身を外して再帰を防ぐ。
-		 * 以前はこの関数の冒頭で外したまま戻していなかったので、同じリクエストで
-		 * 別の記事を保存しても同期されなくなっていた。終わったら必ず戻す.
+		 * sync() の中で wp_update_post() が走るため、自分自身を止めて再帰を防ぐ。
+		 * 以前はこの関数の冒頭で remove_action() したまま戻していなかったので、
+		 * 同じリクエストで別の記事を保存しても同期されなくなっていた。終わったら必ず戻す.
 		 */
-		remove_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10 );
+		$suspended = self::suspend_post_sync( true );
 		$publish_kintone_data->sync( $retun_data );
-		add_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10, 3 );
+		self::suspend_post_sync( $suspended );
 	}
 	/**
 	 * Bulk update.
+	 *
+	 * 最後まで通しで実行する版。CLI（batch/run-update-books.php）と、
+	 * 外部から直接この関数を呼んでいる利用者のために残してある。
+	 * 管理画面からは render_bulk_update_panel() 経由で AJAX のチャンク実行を使う.
 	 *
 	 * @return void
 	 */
 	public function bulk_update() {
 
-		$post_type = apply_filters( 'publish_kintone_data_reflect_post_type', get_option( 'kintone_to_wp_reflect_post_type' ), 'bulk_update' );
+		$state = $this->bulk_update_initial_state();
 
-		/*
-		 * 先に kintone から全レコードを取得する。
-		 *
-		 * 以前は「全記事を下書きにする」→「取得する」の順だった。取得に失敗すると
-		 * 公開へ戻す処理まで辿り着けず、記事が全部下書きのまま残ってサイトから
-		 * 消えてしまう。取得が終わってから記事に触るようにする.
-		 */
-		$kintone_data['records'] = array();
-		$last_id                 = 0;
-		$reacquisition_flag      = true;
+		while ( true ) {
 
-		while ( $reacquisition_flag ) {
+			$state = $this->bulk_update_run_chunk( $state );
 
-			$query = apply_filters( 'import_kintone_change_bulk_update_query', '$id > ' . $last_id . ' order by $id asc limit 500' );
-
-			$url        = 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/records.json?app=' . get_option( 'kintone_to_wp_target_appid' ) . '&query=' . $query;
-			$retun_data = Kintone_Utility::kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
-
-			if ( is_wp_error( $retun_data ) || ! is_array( $retun_data ) || ! isset( $retun_data['records'] ) ) {
-				$message = is_wp_error( $retun_data ) ? $retun_data->get_error_message() : '応答を解釈できませんでした。';
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( 'import-kintone: 一括更新はレコードを取得できなかったため中止しました。' . $message );
-				echo '<div class="error fade"><p><strong>' . esc_html( '一括更新を中止しました。記事は変更していません。' . $message ) . '</strong></p></div>';
+			if ( is_wp_error( $state ) ) {
+				$this->bulk_update_output( $state->get_error_message(), 'error' );
 				return;
 			}
 
-			$kintone_data['records'] = array_merge( $kintone_data['records'], $retun_data['records'] );
+			$this->bulk_update_output( $state['message'] );
 
-			if ( count( $retun_data['records'] ) < 500 ) {
-				$reacquisition_flag = false;
+			if ( $state['completed'] ) {
+				return;
+			}
+		}
+	}
+
+	/**
+	 * 一括更新の初期状態を作る.
+	 *
+	 * @return array
+	 */
+	private function bulk_update_initial_state() {
+
+		return array(
+			'run_id'    => uniqid( '', true ),
+			'phase'     => 'sync',
+			'last_id'   => 0,
+			'total'     => null,
+			'processed' => 0,
+			'swept'     => 0,
+			'completed' => false,
+			'message'   => '',
+		);
+	}
+
+	/**
+	 * 一括更新を1チャンクだけ進める.
+	 *
+	 * 「先に全記事を下書きにする」方式はやめて、mark and sweep にしてある。
+	 *
+	 * 以前は全記事を下書きにしてから kintone を取得していた。取得に失敗すると
+	 * 記事が下書きのまま残ってサイトから消えるので、1.14.2 で「取得してから
+	 * 下書きにする」順に直した。ところが一括更新をチャンクに割ると、全件を
+	 * 取得し終える前に記事へ触らざるを得なくなり、同じ壊れ方が戻ってくる。
+	 *
+	 * そこで、同期できた記事にこの実行の ID を刻んでおき（mark）、
+	 * 全件を取得しきったあとで、刻まれなかった公開記事だけを下書きにする（sweep）。
+	 * 途中で失敗しても記事は公開のまま残り、同じ run_id で再開できる。
+	 * kintone 側で削除されたレコードの記事が下書きになるのも sweep の効果.
+	 *
+	 * @param array $state 実行状態.
+	 *
+	 * @return array|\WP_Error 更新後の実行状態.
+	 */
+	public function bulk_update_run_chunk( $state ) {
+
+		$state = wp_parse_args( (array) $state, $this->bulk_update_initial_state() );
+
+		/*
+		 * チャンク内の wp_update_post() が save_post を発火させるため、
+		 * update_post_kintone_data() を止めておく。止めないとレコードを
+		 * 1件ずつ取り直しにいって API 呼び出しが倍になる。
+		 *
+		 * remove_action() ではなく静的フラグを使うのは、CLI のように
+		 * Admin を別インスタンスで new した場合に remove_action() の
+		 * コールバック比較が一致せず、外れないため.
+		 */
+		$suspended = self::suspend_post_sync( true );
+
+		try {
+			if ( 'sync' === $state['phase'] ) {
+				$state = $this->bulk_update_sync_chunk( $state );
+			} elseif ( 'sweep' === $state['phase'] ) {
+				$state = $this->bulk_update_sweep_chunk( $state );
 			} else {
-				$last_id = end( $retun_data['records'] )['$id']['value'];
+				$state = new \WP_Error( 'kintone_to_wp_bulk_update', '不明な処理段階です: ' . $state['phase'] );
+			}
+		} catch ( \Throwable $e ) {
+			$state = new \WP_Error( 'kintone_to_wp_bulk_update', 'エラーが発生しました: ' . $e->getMessage() );
+		} finally {
+			self::suspend_post_sync( $suspended );
+		}
+
+		if ( is_wp_error( $state ) ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( 'import-kintone: 一括更新を中止しました。' . $state->get_error_message() );
+		}
+
+		return $state;
+	}
+
+	/**
+	 * 【mark】kintone のレコードを1チャンク分取得して同期する.
+	 *
+	 * @param array $state 実行状態.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function bulk_update_sync_chunk( $state ) {
+
+		/**
+		 * Filters 1リクエストで取得・同期する kintone レコード数.
+		 *
+		 * @param int $chunk_size .
+		 *
+		 * @since 1.15.0
+		 */
+		$chunk_size = (int) apply_filters( 'import_kintone_bulk_update_chunk_size', 100 );
+		$chunk_size = max( 1, min( 500, $chunk_size ) );
+
+		$query = apply_filters(
+			'import_kintone_change_bulk_update_query',
+			'$id > ' . $state['last_id'] . ' order by $id asc limit ' . $chunk_size
+		);
+
+		$args = array(
+			'app'   => get_option( 'kintone_to_wp_target_appid' ),
+			'query' => $query,
+		);
+
+		// 進捗表示のための総件数は最初の1回だけ取る.
+		if ( null === $state['total'] ) {
+			$args['totalCount'] = 'true';
+		}
+
+		$url = add_query_arg( $args, 'https://' . get_option( 'kintone_to_wp_kintone_url' ) . '/k/v1/records.json' );
+
+		$response = Kintone_Utility::kintone_api( $url, get_option( 'kintone_to_wp_kintone_api_token' ) );
+
+		/*
+		 * 取得に失敗したら記事に触らずに終わる。sweep へ進まないので、
+		 * 記事は公開のまま残る.
+		 */
+		if ( is_wp_error( $response ) ) {
+			return new \WP_Error( 'kintone_to_wp_bulk_update', 'kintone からレコードを取得できませんでした。記事は変更していません。' . $response->get_error_message() );
+		}
+
+		if ( ! is_array( $response ) || ! isset( $response['records'] ) || ! is_array( $response['records'] ) ) {
+			return new \WP_Error( 'kintone_to_wp_bulk_update', 'kintone の応答を解釈できませんでした。記事は変更していません。' );
+		}
+
+		if ( null === $state['total'] && isset( $response['totalCount'] ) ) {
+			$state['total'] = (int) $response['totalCount'];
+		}
+
+		if ( empty( $response['records'] ) ) {
+
+			// 全件を取得しきった。ここで初めて記事を下書きにしてよい.
+			$state['phase']   = 'sweep';
+			$state['message'] = sprintf( 'kintone の %d 件を反映しました。kintone に無くなった記事を下書きにします。', $state['processed'] );
+
+			return $state;
+		}
+
+		$cursor_before = $state['last_id'];
+
+		/*
+		 * 同期した記事に実行 ID を刻むためのフックを、このチャンクの間だけ付ける。
+		 * 例外で抜けても外れるように finally で外す。付けっぱなしにすると、
+		 * 同じリクエスト内の以降の同期にまで古い実行 ID が刻まれる.
+		 */
+		$this->bulk_update_run_id = $state['run_id'];
+		add_action( 'after_insert_or_update_to_post', array( $this, 'mark_bulk_update_run' ), 10, 1 );
+
+		try {
+			foreach ( $response['records'] as $record ) {
+
+				if ( ! isset( $record['$id']['value'] ) || '' === $record['$id']['value'] ) {
+					continue;
+				}
+
+				$data = array(
+					'record'               => $record,
+					'kintone_to_wp_status' => 'normal',
+					'type'                 => 'UPDATE_RECORD',
+					'app'                  => array(
+						'id' => get_option( 'kintone_to_wp_target_appid' ),
+					),
+				);
+				$data = apply_filters( 'kintone_to_wp_kintone_data', $data );
+
+				$publish_kintone_data = new Publish_Kintone_Data();
+				$publish_kintone_data->sync( $data );
+
+				++$state['processed'];
+				$state['last_id'] = $record['$id']['value'];
+			}
+		} finally {
+			remove_action( 'after_insert_or_update_to_post', array( $this, 'mark_bulk_update_run' ), 10 );
+			$this->bulk_update_run_id = '';
+		}
+
+		/*
+		 * レコードが返ってきたのにカーソルが進まなかった場合、次も同じページが
+		 * 返ってきて永久に終わらない。$id を持たない応答や、
+		 * import_kintone_change_bulk_update_query で $id > の条件を
+		 * 消してしまった場合に起きる.
+		 */
+		if ( $cursor_before === $state['last_id'] ) {
+			return new \WP_Error( 'kintone_to_wp_bulk_update', '取得位置が進みませんでした。処理を中止します。import_kintone_change_bulk_update_query で $id の条件を消していないか確認してください。' );
+		}
+
+		$state['message'] = null === $state['total']
+			? sprintf( '%d 件を反映しました。', $state['processed'] )
+			: sprintf( '%1$d / %2$d 件を反映しました。', $state['processed'], $state['total'] );
+
+		return $state;
+	}
+
+	/**
+	 * 【sweep】この実行で同期されなかった公開記事を下書きにする.
+	 *
+	 * 呼ばれる時点で kintone の全レコードを取得しきっているので、
+	 * ここに残っている公開記事は kintone 側に無いものだけになる.
+	 *
+	 * @param array $state 実行状態.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function bulk_update_sweep_chunk( $state ) {
+
+		$post_type = apply_filters( 'publish_kintone_data_reflect_post_type', get_option( 'kintone_to_wp_reflect_post_type' ), 'bulk_update' );
+
+		/**
+		 * Filters 1リクエストで下書きにする記事数.
+		 *
+		 * @param int $chunk_size .
+		 *
+		 * @since 1.15.0
+		 */
+		$chunk_size = (int) apply_filters( 'import_kintone_bulk_update_sweep_chunk_size', 100 );
+		$chunk_size = max( 1, $chunk_size );
+
+		$the_query = new \WP_Query(
+			array(
+				'post_type'              => $post_type,
+				'post_status'            => 'publish',
+				'posts_per_page'         => $chunk_size,
+				'fields'                 => 'ids',
+				'orderby'                => 'ID',
+				'order'                  => 'ASC',
+				'no_found_rows'          => true,
+				'ignore_sticky_posts'    => true,
+				'update_post_term_cache' => false,
+				'meta_query'             => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					'relation' => 'OR',
+					array(
+						'key'     => self::BULK_UPDATE_RUN_META_KEY,
+						'value'   => $state['run_id'],
+						'compare' => '!=',
+					),
+					array(
+						'key'     => self::BULK_UPDATE_RUN_META_KEY,
+						'compare' => 'NOT EXISTS',
+					),
+				),
+			)
+		);
+
+		$post_ids = $the_query->posts;
+
+		if ( empty( $post_ids ) ) {
+
+			$state['phase']     = 'done';
+			$state['completed'] = true;
+			$state['message']   = sprintf( '一括更新が完了しました。%1$d 件を反映し、%2$d 件を下書きにしました。', $state['processed'], $state['swept'] );
+
+			return $state;
+		}
+
+		$drafted = 0;
+		foreach ( $post_ids as $post_id ) {
+			$result = wp_update_post(
+				array(
+					'ID'          => $post_id,
+					'post_status' => 'draft',
+				),
+				true
+			);
+
+			if ( is_wp_error( $result ) ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( 'import-kintone: 記事 %1$d を下書きにできませんでした。%2$s', $post_id, $result->get_error_message() ) );
+				continue;
+			}
+
+			++$drafted;
+		}
+
+		/*
+		 * 1件も下書きにできなかった場合、次の問い合わせでも同じ記事が返ってくる。
+		 * そのまま返すと呼び出し側が永久に同じチャンクを繰り返すので、ここで止める.
+		 */
+		if ( 0 === $drafted ) {
+			return new \WP_Error( 'kintone_to_wp_bulk_update', '記事を下書きにできませんでした。処理を中止します。' );
+		}
+
+		$state['swept']  += $drafted;
+		$state['message'] = sprintf( '%d 件を下書きにしました。', $state['swept'] );
+
+		return $state;
+	}
+
+	/**
+	 * 【mark】同期できた記事に実行 ID を刻む.
+	 *
+	 * Publish_Kintone_Data::sync() の after_insert_or_update_to_post から呼ばれる.
+	 *
+	 * @param int $post_id .
+	 *
+	 * @return void
+	 */
+	public function mark_bulk_update_run( $post_id ) {
+
+		if ( empty( $post_id ) || is_wp_error( $post_id ) || empty( $this->bulk_update_run_id ) ) {
+			return;
+		}
+
+		update_post_meta( $post_id, self::BULK_UPDATE_RUN_META_KEY, $this->bulk_update_run_id );
+	}
+
+	/**
+	 * 一括更新の経過を出力する.
+	 *
+	 * CLI からも呼ばれるので、その場合は素のテキストで出す.
+	 *
+	 * @param string $message .
+	 * @param string $type    info または error.
+	 *
+	 * @return void
+	 */
+	private function bulk_update_output( $message, $type = 'info' ) {
+
+		if ( '' === $message ) {
+			return;
+		}
+
+		if ( ( defined( 'WP_CLI' ) && WP_CLI ) || 'cli' === php_sapi_name() ) {
+			echo esc_html( $message ) . "\n";
+			return;
+		}
+
+		$class = ( 'error' === $type ) ? 'notice notice-error' : 'notice notice-success';
+		echo '<div class="' . esc_attr( $class ) . '"><p><strong>' . esc_html( $message ) . '</strong></p></div>';
+	}
+
+	/**
+	 * 一括更新の進行状況パネルを出力する.
+	 *
+	 * 実際の処理は bulk_update_chunk() へ AJAX で投げる.
+	 *
+	 * @return void
+	 */
+	private function render_bulk_update_panel() {
+
+		wp_enqueue_style( 'kintone-to-wp-bulk-update' );
+		wp_enqueue_script( 'kintone-to-wp-bulk-update' );
+
+		?>
+		<div class="kintone-to-wp-bulk-update" id="kintone-to-wp-bulk-update">
+			<h3><?php esc_html_e( 'Bulk Update', 'kintone-to-wp' ); ?></h3>
+			<p class="description">
+				<?php esc_html_e( '処理が終わるまでこの画面を開いたままにしてください。途中で閉じても記事は壊れません。', 'kintone-to-wp' ); ?>
+			</p>
+			<div class="kintone-to-wp-bulk-update__track">
+				<div class="kintone-to-wp-bulk-update__bar" data-role="bar"></div>
+			</div>
+			<p class="kintone-to-wp-bulk-update__status" data-role="status"></p>
+			<p>
+				<button type="button" class="button" data-role="stop"><?php esc_html_e( '中止', 'kintone-to-wp' ); ?></button>
+				<button type="button" class="button button-primary" data-role="retry" hidden><?php esc_html_e( '再開', 'kintone-to-wp' ); ?></button>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * 管理画面のアセットを登録する.
+	 *
+	 * @param string $hook_suffix .
+	 *
+	 * @return void
+	 */
+	public function admin_enqueue_scripts( $hook_suffix ) {
+
+		if ( $hook_suffix !== $this->hook_suffix ) {
+			return;
+		}
+
+		wp_register_style(
+			'kintone-to-wp-bulk-update',
+			KINTONE_TO_WP_URL . '/assets/css/bulk-update.css',
+			array(),
+			KINTONE_TO_WP_VERSION
+		);
+
+		wp_register_script(
+			'kintone-to-wp-bulk-update',
+			KINTONE_TO_WP_URL . '/assets/js/bulk-update.js',
+			array( 'jquery' ),
+			KINTONE_TO_WP_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'kintone-to-wp-bulk-update',
+			'kintoneToWpBulkUpdate',
+			array(
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( self::BULK_UPDATE_NONCE_ACTION ),
+				'i18n'    => array(
+					'starting'     => __( '処理を開始しています...', 'kintone-to-wp' ),
+					'stopped'      => __( '中止しました。「再開」で続きから実行できます。', 'kintone-to-wp' ),
+					'networkError' => __( '通信エラーが発生しました。「再開」で続きから実行できます。', 'kintone-to-wp' ),
+					'unknownError' => __( '不明なエラーが発生しました。', 'kintone-to-wp' ),
+					'sweeping'     => __( 'kintone に無くなった記事を下書きにしています...', 'kintone-to-wp' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * AJAX: 一括更新を1チャンク進める.
+	 *
+	 * @return void
+	 */
+	public function bulk_update_chunk() {
+
+		if ( ! check_ajax_referer( self::BULK_UPDATE_NONCE_ACTION, 'nonce', false ) ) {
+			wp_send_json_error( array( 'message' => __( 'セキュリティチェックに失敗しました。画面を再読み込みしてください。', 'kintone-to-wp' ) ) );
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( '権限がありません。', 'kintone-to-wp' ) ) );
+		}
+
+		$run_id = isset( $_POST['run_id'] ) ? sanitize_text_field( wp_unslash( $_POST['run_id'] ) ) : '';
+
+		if ( '' === $run_id ) {
+			$state = $this->bulk_update_initial_state();
+		} else {
+
+			if ( ! preg_match( '/\A[0-9a-f.]{1,32}\z/', $run_id ) ) {
+				wp_send_json_error( array( 'message' => __( '実行 ID が不正です。', 'kintone-to-wp' ) ) );
+			}
+
+			$state = get_transient( self::BULK_UPDATE_STATE_PREFIX . $run_id );
+
+			if ( ! is_array( $state ) ) {
+				wp_send_json_error(
+					array(
+						'message' => __( '実行状態が見つかりませんでした（時間切れの可能性があります）。記事は変更していません。最初からやり直してください。', 'kintone-to-wp' ),
+					)
+				);
 			}
 		}
 
 		/*
-		 * 一旦全記事を下書きにする。
-		 *
-		 * この wp_update_post() は save_post を発火させるので、外しておかないと
-		 * 1件ごとに update_post_kintone_data() が動き、レコードを1件ずつ取りに
-		 * いってしまう。このあとまとめて同期するので二重になる.
+		 * Kintone_Utility::kintone_api() はエラー時に HTML を echo する。
+		 * そのまま流すと JSON の前にゴミが混ざって応答が壊れるので捨てる。
+		 * 内容は WP_Error 側に入っているため、失われる情報はない.
 		 */
-		remove_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10 );
+		$before = $state;
+		ob_start();
+		$state        = $this->bulk_update_run_chunk( $state );
+		$stray_output = ob_get_clean();
 
-		$args = array(
-			'post_type'      => $post_type,
-			'posts_per_page' => -1,
-			'post_status'    => 'publish',
-		);
-
-		$the_query = new \WP_Query( $args );
-		if ( $the_query->have_posts() ) {
-			while ( $the_query->have_posts() ) {
-				$the_query->the_post();
-				// 下書きに更新する.
-				wp_update_post(
-					array(
-						'ID'          => get_the_ID(),
-						'post_status' => 'draft',
-					)
-				);
-			}
-			/* Restore original Post Data */
-			wp_reset_postdata();
+		if ( '' !== trim( (string) $stray_output ) ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( 'import-kintone: 一括更新中の想定外の出力を破棄しました。' . wp_strip_all_tags( $stray_output ) );
 		}
 
-		add_action( 'save_post', array( $this, 'update_post_kintone_data' ), 10, 3 );
+		if ( is_wp_error( $state ) ) {
 
-		// @todo 一括更新は kintone でデータを削除したものは、WordPress側では削除されない。(Webhookを最初から使用しているとWebhookで削除はされるけど)
-		foreach ( $kintone_data['records'] as $key => $value ) {
+			// 途中まで進んだ状態は残しておき、「再開」で続きから実行できるようにする.
+			set_transient( self::BULK_UPDATE_STATE_PREFIX . $before['run_id'], $before, DAY_IN_SECONDS );
 
-			$data                         = array();
-			$data['record']               = $value;
-			$data['kintone_to_wp_status'] = 'normal';
-			$data['type']                 = 'UPDATE_RECORD';
-			$data['app']                  = array(
-				'id' => get_option( 'kintone_to_wp_target_appid' ),
+			wp_send_json_error(
+				array(
+					'message' => $state->get_error_message(),
+					'run_id'  => $before['run_id'],
+				)
 			);
-			$data                         = apply_filters( 'kintone_to_wp_kintone_data', $data );
-			$publish_kintone_data         = new Publish_Kintone_Data();
-			$publish_kintone_data->sync( $data );
 		}
 
-		echo '<div class="updated fade"><p><strong>Updated</strong></p></div>';
+		if ( $state['completed'] ) {
+			delete_transient( self::BULK_UPDATE_STATE_PREFIX . $state['run_id'] );
+		} else {
+			set_transient( self::BULK_UPDATE_STATE_PREFIX . $state['run_id'], $state, DAY_IN_SECONDS );
+		}
+
+		wp_send_json_success(
+			array(
+				'run_id'    => $state['run_id'],
+				'phase'     => $state['phase'],
+				'processed' => $state['processed'],
+				'swept'     => $state['swept'],
+				'total'     => $state['total'],
+				'completed' => $state['completed'],
+				'message'   => $state['message'],
+			)
+		);
 	}
 	/**
 	 * Update kintone app fields code for wp

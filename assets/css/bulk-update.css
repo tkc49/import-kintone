@@ -1,0 +1,40 @@
+/**
+ * 一括更新の進行状況パネル.
+ *
+ * @package import-kintone
+ */
+
+.kintone-to-wp-bulk-update {
+	margin: 20px 0;
+	padding: 12px 20px 4px;
+	border: 1px solid #c3c4c7;
+	border-left: 4px solid #2271b1;
+	background: #fff;
+	box-shadow: 0 1px 1px rgba( 0, 0, 0, 0.04 );
+}
+
+.kintone-to-wp-bulk-update h3 {
+	margin-top: 0.6em;
+}
+
+.kintone-to-wp-bulk-update__track {
+	width: 100%;
+	max-width: 600px;
+	height: 16px;
+	margin: 12px 0;
+	background-color: #f0f0f1;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.kintone-to-wp-bulk-update__bar {
+	width: 0;
+	height: 100%;
+	background-color: #2271b1;
+	transition: width 0.3s ease;
+}
+
+.kintone-to-wp-bulk-update__status {
+	font-weight: 600;
+	min-height: 1.5em;
+}
