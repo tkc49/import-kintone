@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 6.4.2
-Stable tag: 1.14.2
+Stable tag: 1.15.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,15 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.15.0 (2026-09-09) =
+* [Changed] Bulk update now runs in chunks over AJAX, so it no longer times out on apps with many records. The settings screen shows the progress and lets you stop and resume
+* [Changed] Bulk update no longer drafts every post before it starts. It marks each post as it syncs, and only after every kintone record has been fetched does it draft the posts that were not marked. An interrupted run now leaves the posts published instead of hiding the whole site
+* [Changed] **If your site does not set `post_status` through the `import_kintone_update_post_data` filter, published posts now stay published after a bulk update.** They used to all become drafts
+* [Fixed] Bulk update now drafts the posts whose kintone record was deleted. This was the long-standing @todo in the code
+* [Fixed] Suspend the save_post sync with a flag instead of remove_action(). The callback comparison never matched when Admin was instantiated separately, as batch/run-update-books.php does, so bulk update re-fetched every record one by one
+* [Fixed] URL-encode the query string sent to kintone
+* [Added] Filters `import_kintone_bulk_update_chunk_size` (default 100) and `import_kintone_bulk_update_sweep_chunk_size` (default 100). Note that `import_kintone_change_bulk_update_query` now receives `limit 100` instead of `limit 500`
 
 = 1.14.2 (2026-08-31) =
 * [Fixed] Stop the sync instead of crashing when the kintone request fails. A WP_Error was used as an array, which caused a fatal error after the post had already been saved
@@ -193,3 +202,8 @@ Release Date: October 9th, 2020
 * 1.0.2 - change menu name
 * 1.0.1 - add uninstall.php
 * 1.0.0 - First Release
+
+== Upgrade Notice ==
+
+= 1.15.0 =
+Bulk update was rewritten to run in chunks and no longer drafts every post before it starts. If your site does not set `post_status` through the `import_kintone_update_post_data` filter, published posts now stay published after a bulk update instead of all becoming drafts. Posts whose kintone record was deleted are now drafted.
