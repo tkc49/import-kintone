@@ -388,7 +388,7 @@ class Admin {
 	/**
 	 * Bulk update.
 	 *
-	 * 最後まで通しで実行する版。CLI（batch/run-update-books.php）と、
+	 * 最後まで通しで実行する版。CLI（batch/run-bulk-update.php）と、
 	 * 外部から直接この関数を呼んでいる利用者のために残してある。
 	 * 管理画面からは render_bulk_update_panel() 経由で AJAX のチャンク実行を使う.
 	 *

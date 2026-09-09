@@ -1,6 +1,13 @@
 <?php
 /**
- * Publish Kintone Data で連携している記事をバッチで更新する.
+ * Publish Kintone Data で連携している記事を一括更新する CLI スクリプト.
+ *
+ * Admin::bulk_update() を呼ぶ。これは管理画面のチャンク実行と同じ処理を
+ * 最後まで通しで走らせる版。1.15.0 で管理画面が AJAX の分割実行になり
+ * タイムアウトしなくなったので、ブラウザを開けない場面
+ * (cron などの自動実行) で使う.
+ *
+ * 使い方: php batch/run-bulk-update.php
  *
  * @package import-kintone
  */
