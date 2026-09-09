@@ -3,6 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 6.4.2
+Requires PHP: 7.4
 Stable tag: 1.15.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -211,7 +212,7 @@ Release Date: October 9th, 2020
 == Upgrade Notice ==
 
 = 1.15.1 =
-The CLI script `batch/run-update-books.php` was renamed to `batch/run-bulk-update.php` and now refuses to run outside the CLI. If you invoke the old path from cron or a shell script, update it. The old path used to be reachable over HTTP and would start a full kintone sync without any authentication.
+The CLI script `batch/run-update-books.php` was renamed to `batch/run-bulk-update.php` and now refuses to run outside the CLI. If you invoke the old path from cron or a shell script, update it. The old path was reachable over HTTP and would start a full kintone sync without authentication.
 
 = 1.15.0 =
-Bulk update was rewritten to run in chunks and no longer drafts every post before it starts. If your site does not set `post_status` through the `import_kintone_update_post_data` filter, published posts now stay published after a bulk update instead of all becoming drafts. Posts whose kintone record was deleted are now drafted.
+Bulk update now runs in chunks and no longer drafts every post before it starts. If your site does not set `post_status` via the `import_kintone_update_post_data` filter, published posts stay published after a bulk update instead of all becoming drafts.

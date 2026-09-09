@@ -8,13 +8,24 @@
  * 実行:
  *   php tests/verify-bulk-update.php
  *
+ * wp-load.php はプラグインの位置から相対で探す。別の配置で動かしたいときは
+ * 環境変数 WP_LOAD_PATH で上書きする（CI 用）.
+ *
  * 特に Test C は 1.14.2 で直した「取得に失敗すると記事が全部下書きのまま残る」
  * の回帰防止。チャンク処理を触るときは必ず通すこと.
  *
  * @package import-kintone
  */
 
-require_once __DIR__ . '/../../../../wp-load.php';
+$wp_load = getenv( 'WP_LOAD_PATH' );
+if ( ! $wp_load ) {
+	$wp_load = __DIR__ . '/../../../../wp-load.php';
+}
+if ( ! file_exists( $wp_load ) ) {
+	fwrite( STDERR, "wp-load.php が見つかりません: {$wp_load}\n" );
+	exit( 1 );
+}
+require_once $wp_load;
 
 use publish_kintone_data\Admin;
 
@@ -29,6 +40,31 @@ function ok( $condition, $label ) {
 		++$failures;
 	}
 }
+
+// --------------------------------------- プラグインの接続先設定（素の WP では空）.
+/*
+ * kintone の URL とアプリ ID は get_option() で直接読まれてリクエスト URL に使われる。
+ * 未設定のままだと "https:///k/v1/..." になってスタブが解釈できないので、テスト用の
+ * 値を入れる。通信自体は pre_http_request で差し替えるので、値は何でもよい。
+ * 実サイトの設定を壊さないよう、終了時（致命的エラー時も含む）に必ず戻す.
+ */
+$pkd_saved_options = array(
+	'kintone_to_wp_kintone_url'  => get_option( 'kintone_to_wp_kintone_url' ),
+	'kintone_to_wp_target_appid' => get_option( 'kintone_to_wp_target_appid' ),
+);
+register_shutdown_function(
+	function () use ( $pkd_saved_options ) {
+		foreach ( $pkd_saved_options as $name => $value ) {
+			if ( false === $value ) {
+				delete_option( $name );
+			} else {
+				update_option( $name, $value );
+			}
+		}
+	}
+);
+update_option( 'kintone_to_wp_kintone_url', 'example.cybozu.com' );
+update_option( 'kintone_to_wp_target_appid', '1' );
 
 // ------------------------------------------------- 実データを触らないための隔離.
 register_post_type( 'pkd_verify', array( 'public' => false, 'supports' => array( 'title', 'editor', 'custom-fields' ) ) );
@@ -81,6 +117,9 @@ add_filter( 'pre_http_request', function ( $preempt, $args, $url ) {
 	++$GLOBALS['stub_calls'];
 
 	$parts = wp_parse_url( $url );
+	if ( ! is_array( $parts ) || ! isset( $parts['query'] ) ) {
+		return new WP_Error( 'pkd_stub', 'スタブが URL を解釈できませんでした: ' . $url );
+	}
 	parse_str( $parts['query'], $q );
 	preg_match( '/\$id > (\d+)/', $q['query'], $m );
 	$last_id = isset( $m[1] ) ? (int) $m[1] : 0;
