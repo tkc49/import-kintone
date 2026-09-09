@@ -5,6 +5,15 @@
  * @package import-kintone
  */
 
+// CLI 以外からの実行を拒否する.
+// このファイルは plugins 配下にあり URL から直接叩ける位置にある。
+// 認証も nonce も無いため、外部から連打されると kintone の全件同期が
+// 何度でも走ってしまう。CLI 限定にする.
+if ( 'cli' !== PHP_SAPI ) {
+	header( 'HTTP/1.1 403 Forbidden' );
+	exit( 'This script can only be run from the command line.' );
+}
+
 // 実行時間制限を解除.
 set_time_limit( 0 );
 
