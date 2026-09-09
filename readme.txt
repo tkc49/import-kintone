@@ -3,7 +3,7 @@ Contributors: tkc49
 Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 6.4.2
-Stable tag: 1.15.0
+Stable tag: 1.15.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,6 +59,11 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.15.1 (2026-09-09) =
+* [Security] `batch/run-bulk-update.php` now refuses to run outside the CLI. The file sits under `plugins/` and was reachable over HTTP, so anyone could trigger a full kintone sync with no authentication and no nonce
+* [Changed] Renamed `batch/run-update-books.php` to `batch/run-bulk-update.php`. The "books" in the old name referred to a post type this plugin does not have; the sync target is chosen with the `kintone_to_wp_reflect_post_type` setting. **If you call the old path from cron or a shell script, update it**
+* [Changed] Documented why the CLI script exists. Since 1.15.0 the admin screen no longer times out, so the script is now for running a bulk update without a browser (cron and the like)
 
 = 1.15.0 (2026-09-09) =
 * [Changed] Bulk update now runs in chunks over AJAX, so it no longer times out on apps with many records. The settings screen shows the progress and lets you stop and resume
@@ -204,6 +209,9 @@ Release Date: October 9th, 2020
 * 1.0.0 - First Release
 
 == Upgrade Notice ==
+
+= 1.15.1 =
+The CLI script `batch/run-update-books.php` was renamed to `batch/run-bulk-update.php` and now refuses to run outside the CLI. If you invoke the old path from cron or a shell script, update it. The old path used to be reachable over HTTP and would start a full kintone sync without any authentication.
 
 = 1.15.0 =
 Bulk update was rewritten to run in chunks and no longer drafts every post before it starts. If your site does not set `post_status` through the `import_kintone_update_post_data` filter, published posts now stay published after a bulk update instead of all becoming drafts. Posts whose kintone record was deleted are now drafted.
