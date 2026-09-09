@@ -38,3 +38,12 @@
 	font-weight: 600;
 	min-height: 1.5em;
 }
+
+/*
+ * wp-admin の .button は display: inline-block を持っており、
+ * ブラウザ既定の [hidden] { display: none } より詳細度が高いため、
+ * hidden 属性だけではボタンが消えない.
+ */
+.kintone-to-wp-bulk-update [hidden] {
+	display: none;
+}

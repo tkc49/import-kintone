@@ -29,6 +29,13 @@
 		var running = false;
 		var runId = '';
 
+		/*
+		 * 中止 → 再開のように実行を切り替えると、切り替え前に投げたリクエストの
+		 * 応答が後から返ってくる。そのまま処理すると step() の連鎖が二重になり、
+		 * 古い進捗で表示を上書きしてしまう。世代を振って、古い応答は捨てる.
+		 */
+		var generation = 0;
+
 		function setProgress( response ) {
 			var percent;
 
@@ -47,6 +54,7 @@
 		}
 
 		function halt( message, resumable ) {
+			++generation;
 			running = false;
 			$status.text( message );
 			$stop.hide();
@@ -58,11 +66,23 @@
 				return;
 			}
 
+			var myGeneration = generation;
+
 			$.post( settings.ajaxUrl, {
 				action: 'kintone_to_wp_bulk_update_chunk',
 				nonce: settings.nonce,
 				run_id: runId
 			} ).done( function ( response ) {
+				// 中止した直後に、飛行中だったリクエストの応答が返ってくることがある。
+				// run_id だけ拾って（再開に使う）、表示は触らない.
+				if ( response && response.success && response.data && response.data.run_id ) {
+					runId = response.data.run_id;
+				}
+
+				if ( ! running || myGeneration !== generation ) {
+					return;
+				}
+
 				if ( ! response || ! response.success ) {
 					var message = ( response && response.data && response.data.message ) || i18n.unknownError;
 
@@ -76,10 +96,10 @@
 				}
 
 				var data = response.data;
-				runId = data.run_id;
 				setProgress( data );
 
 				if ( data.completed ) {
+					++generation;
 					running = false;
 					$status.text( data.message );
 					$stop.hide();
@@ -90,11 +110,15 @@
 				$status.text( 'sweep' === data.phase ? i18n.sweeping : data.message );
 				step();
 			} ).fail( function () {
+				if ( myGeneration !== generation ) {
+					return;
+				}
 				halt( i18n.networkError, '' !== runId );
 			} );
 		}
 
 		function start() {
+			++generation;
 			running = true;
 			$stop.show();
 			$retry.prop( 'hidden', true );
