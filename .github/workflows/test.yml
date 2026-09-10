@@ -88,10 +88,17 @@ jobs:
           cp -r plugin wp/wp-content/plugins/import-kintone
           wp plugin activate import-kintone --path=wp --allow-root
 
-      - name: Verify bulk update
+      - name: Run verification tests
         env:
           WP_LOAD_PATH: ${{ github.workspace }}/wp/wp-load.php
-        run: php wp/wp-content/plugins/import-kintone/tests/verify-bulk-update.php
+        run: |
+          status=0
+          for f in wp/wp-content/plugins/import-kintone/tests/verify-*.php; do
+            echo "::group::$(basename "$f")"
+            php "$f" || status=1
+            echo "::endgroup::"
+          done
+          exit $status
 
   plugin-check:
     name: WordPress Plugin Check
