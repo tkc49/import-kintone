@@ -4,7 +4,7 @@ Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.15.1
+Stable tag: 1.16.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -60,6 +60,14 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.16.0 (2026-09-10) =
+* [Fixed] The text domain did not match the plugin slug, so translations were never loaded. WordPress.org ships language packs named after the slug (`import-kintone`), but the code declared `kintone-to-wp`. Nothing was translated before this release, so no existing translation breaks
+* [Fixed] Added the direct file access check to the main plugin file and to the shortcode file. Both run code at the top level
+* [Changed] The bulk update panel is now written in English, like the rest of the admin screens. Eleven of its messages were not run through a translation function at all
+* [Changed] `Tested up to` is now 7.1, backed by a CI matrix that installs WordPress 7.1, 7.0.4, 6.9.7, 6.8.8 and nightly on PHP 7.4 through 8.4 and runs the test suite on each
+* [Added] `Requires PHP: 7.4`. The header was missing, so WordPress.org could not warn users on an unsupported PHP version
+* [Removed] `load_plugin_textdomain()` and the `Domain Path` header. WordPress loads translations for WordPress.org plugins automatically since 4.6, and the folder the header pointed to did not exist
 
 = 1.15.1 (2026-09-09) =
 * [Security] `batch/run-bulk-update.php` now refuses to run outside the CLI. The file sits under `plugins/` and was reachable over HTTP, so anyone could trigger a full kintone sync with no authentication and no nonce
@@ -210,6 +218,9 @@ Release Date: October 9th, 2020
 * 1.0.0 - First Release
 
 == Upgrade Notice ==
+
+= 1.16.0 =
+Translations were never loaded because the text domain did not match the plugin slug. This release fixes that, so translations from translate.wordpress.org now apply. The bulk update panel is now in English rather than Japanese.
 
 = 1.15.1 =
 The CLI script `batch/run-update-books.php` was renamed to `batch/run-bulk-update.php` and now refuses to run outside the CLI. If you invoke the old path from cron or a shell script, update it. The old path was reachable over HTTP and would start a full kintone sync without authentication.
