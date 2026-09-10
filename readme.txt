@@ -12,7 +12,92 @@ The data of kintone can be reflected on WordPress.
 
 == Description ==
 
-The data of kintone can be reflected on WordPress.
+Publish kintone data turns a kintone app into WordPress content. Each record in
+the app becomes a post, and the field values become the post title, the post
+content, taxonomy terms, the featured image and custom fields, following the
+mapping you set up on the settings screen.
+
+It is aimed at the case where the business data already lives in kintone and the
+website needs to show it: product catalogues, member directories, event listings,
+property listings and the like. Staff keep editing records in kintone, which they
+already know how to use, and the site follows.
+
+= One-way, with kintone as the source of truth =
+
+The sync only ever runs from kintone to WordPress. Nothing is written back.
+
+If someone edits a synced post in the WordPress admin and saves it, the plugin
+fetches that record from kintone again and overwrites the post with the kintone
+values. This is deliberate: it keeps the two sides from drifting apart, and it
+means kintone is always the place to make a correction.
+
+= Three ways data reaches WordPress =
+
+* **Webhook** — kintone notifies WordPress the moment a record is added, updated
+  or deleted, and only that record is synced. This is the normal way to run it.
+  The settings screen shows the URL to register in your kintone app.
+* **Saving a post** — saving a synced post in the WordPress admin re-fetches that
+  record, as described above.
+* **Bulk update** — a button on the settings screen walks the whole app and
+  reflects every record. Use it for the first import, or after changing the field
+  mapping. It runs in small batches with a progress bar, and can be stopped and
+  resumed. `batch/run-bulk-update.php` does the same thing from the command line,
+  for cron.
+
+A record deleted in kintone deletes its post if the webhook is in place. If the
+webhook was not running at the time, the next bulk update moves the orphaned post
+to draft instead of leaving it published.
+
+= What the field values become =
+
+* **FILE** — the file is downloaded and added to the media library. The custom
+  field holds the attachment ID. Point the featured image setting at a file field
+  to use it as the post thumbnail.
+* **USER_SELECT** and **SUBTABLE** — stored as arrays. When a user field is mapped
+  to a taxonomy, the user names become the terms.
+* **CREATOR** and **MODIFIER** — split into two custom fields, `<key>_code` and
+  `<key>_name`.
+* **DATETIME** — stored as `Y-m-d H:i`, shifted by nine hours from UTC.
+* **Anything else** — stored as text. Fields that hold several values, such as
+  checkboxes and multi-select, are joined with commas.
+
+Custom Field Suite is used to store the value when that plugin is active.
+
+= Showing a value in a template =
+
+Mapped custom fields can be read with `get_post_meta()` as usual, or placed in
+post content with the shortcode:
+
+`[publish_kintone_data custom_field_key="your_meta_key"]`
+
+`format="number_format"` adds thousands separators. Any other value is treated as
+a date format and passed to `date_i18n()`, so the stored value has to be a Unix
+timestamp:
+
+`[publish_kintone_data custom_field_key="price" format="number_format"]`
+`[publish_kintone_data custom_field_key="opened_at" format="Y-m-d"]`
+
+= Before you start =
+
+* A kintone API token for the app, with permission to view records. Add permission
+  to add, update and delete records as well if you want the webhook to fire.
+* A post type to reflect the app into. The built-in Posts and Pages both work, and
+  so does any public custom post type.
+* Posts are created as drafts. Publishing them is left to the site, so that a new
+  record does not appear on the front page before anyone has looked at it. See
+  below for how to change that.
+
+= For developers =
+
+The post data is passed through `import_kintone_insert_post_data` and
+`import_kintone_update_post_data` before a post is created or updated. This is
+where to set `post_status` if you want records published automatically, and
+returning an empty array skips the write entirely.
+
+Every setting is read through a filter named `publish_kintone_data_*`, with the
+kintone payload as the second argument, so the connected app, the target post type
+and the field mapping can all be swapped per record. That is how one WordPress
+site can serve several kintone apps.
 
 = What is kintone? =
 
@@ -29,10 +114,22 @@ Cover banner designed by [akari_doi](https://profiles.wordpress.org/akari_doi/)
 
 == Installation ==
 
-1. Upload the entire `publish-kintone-data` folder to the `/ wp-content / plugins /` directory.
-2. Write an equation for the confirmatory reaction of each cation and anion based on the experimental results of Operation 3. Activate the plugin through the 'Plugins' menu in WordPress
+1. Install the plugin through the Plugins screen in WordPress, or upload the
+   `import-kintone` folder to `/wp-content/plugins/`.
+2. Activate it through the Plugins screen.
+3. Go to Settings > Publish kintone data. Enter your kintone subdomain, an API
+   token for the app and the app ID, choose the post type to reflect the app into,
+   and save. The field list is fetched from kintone at this point.
+4. Map the kintone fields to the post title, post content, taxonomies, the featured
+   image and your custom field keys, then save again.
+5. Copy the webhook URL shown on the settings screen into the webhook settings of
+   your kintone app, so that changes are reflected as they happen.
+6. Press Bulk Update to bring the records that already exist in the app across.
 
-Open the post edit screen in the WordPress administration screen, and in the text editor pane, put the short code in the place where you want to display.
+To print a value inside post content, put the shortcode where you want it to
+appear:
+
+`[publish_kintone_data custom_field_key="your_meta_key"]`
 
 == Frequently asked questions ==
 
