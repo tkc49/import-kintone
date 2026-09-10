@@ -96,7 +96,7 @@ $log_a = ob_get_clean();
 $state_a = pkd_post_statuses();
 pkd_ok( 3 === count( $state_a ), '3件の記事ができた（実際: ' . count( $state_a ) . '件）' );
 pkd_ok( array( 'publish', 'publish', 'publish' ) === array_values( $state_a ), '3件とも公開状態' );
-pkd_ok( false !== strpos( $log_a, '一括更新が完了しました' ), '完了メッセージが出た' );
+pkd_ok( false !== strpos( $log_a, 'Bulk update finished' ), '完了メッセージが出た' );
 
 // ============ Test B: kintone から1件消えた -> sweep で下書きになるか.
 pkd_section( 'Test B: kintone 側でレコード2が消える' );
@@ -125,8 +125,8 @@ $log_c          = ob_get_clean();
 $stub_fail_from = null;
 
 pkd_ok( array( 'publish', 'publish', 'publish' ) === array_values( pkd_post_statuses() ), '取得に失敗しても記事は公開のまま（下書きにされない）' );
-pkd_ok( false !== strpos( $log_c, '記事は変更していません' ), '中止メッセージが出た' );
-pkd_ok( false === strpos( $log_c, '一括更新が完了しました' ), '完了とは報告していない' );
+pkd_ok( false !== strpos( $log_c, 'No posts were changed' ), '中止メッセージが出た' );
+pkd_ok( false === strpos( $log_c, 'Bulk update finished' ), '完了とは報告していない' );
 
 // ================================ Test D: save_post 経由の二重同期が止まるか.
 pkd_section( 'Test D: 一括更新中に save_post 経由の再取得が走らない' );
@@ -155,7 +155,7 @@ pkd_set_http_handler( $GLOBALS['pkd_http_handler'] );
 ob_start();
 $admin->bulk_update();
 $log_f = ob_get_clean();
-pkd_ok( false !== strpos( $log_f, '取得位置が進みませんでした' ), '無限ループせず中止した' );
+pkd_ok( false !== strpos( $log_f, 'cursor did not advance' ), '無限ループせず中止した' );
 pkd_ok( pkd_http_count( '/k/v1/records.json' ) <= 2, 'kintone を叩き続けていない（実際: ' . pkd_http_count( '/k/v1/records.json' ) . '回）' );
 
 pkd_finish();
