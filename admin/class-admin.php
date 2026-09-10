@@ -474,10 +474,12 @@ class Admin {
 			} elseif ( 'sweep' === $state['phase'] ) {
 				$state = $this->bulk_update_sweep_chunk( $state );
 			} else {
-				$state = new \WP_Error( 'kintone_to_wp_bulk_update', '不明な処理段階です: ' . $state['phase'] );
+				/* translators: %s: phase name. */
+				$state = new \WP_Error( 'kintone_to_wp_bulk_update', sprintf( __( 'Unknown phase: %s', 'import-kintone' ), $state['phase'] ) );
 			}
 		} catch ( \Throwable $e ) {
-			$state = new \WP_Error( 'kintone_to_wp_bulk_update', 'エラーが発生しました: ' . $e->getMessage() );
+			/* translators: %s: error message. */
+			$state = new \WP_Error( 'kintone_to_wp_bulk_update', sprintf( __( 'An error occurred: %s', 'import-kintone' ), $e->getMessage() ) );
 		} finally {
 			self::suspend_post_sync( $suspended );
 		}
@@ -533,11 +535,12 @@ class Admin {
 		 * 記事は公開のまま残る.
 		 */
 		if ( is_wp_error( $response ) ) {
-			return new \WP_Error( 'kintone_to_wp_bulk_update', 'kintone からレコードを取得できませんでした。記事は変更していません。' . $response->get_error_message() );
+			/* translators: %s: error message from kintone. */
+			return new \WP_Error( 'kintone_to_wp_bulk_update', sprintf( __( 'Could not fetch the records from kintone. No posts were changed. %s', 'import-kintone' ), $response->get_error_message() ) );
 		}
 
 		if ( ! is_array( $response ) || ! isset( $response['records'] ) || ! is_array( $response['records'] ) ) {
-			return new \WP_Error( 'kintone_to_wp_bulk_update', 'kintone の応答を解釈できませんでした。記事は変更していません。' );
+			return new \WP_Error( 'kintone_to_wp_bulk_update', __( 'Could not parse the response from kintone. No posts were changed.', 'import-kintone' ) );
 		}
 
 		if ( null === $state['total'] && isset( $response['totalCount'] ) ) {
@@ -547,8 +550,9 @@ class Admin {
 		if ( empty( $response['records'] ) ) {
 
 			// 全件を取得しきった。ここで初めて記事を下書きにしてよい.
-			$state['phase']   = 'sweep';
-			$state['message'] = sprintf( 'kintone の %d 件を反映しました。kintone に無くなった記事を下書きにします。', $state['processed'] );
+			$state['phase'] = 'sweep';
+			/* translators: %d: number of records synced. */
+			$state['message'] = sprintf( __( 'Synced %d records from kintone. Now drafting the posts whose record is gone.', 'import-kintone' ), $state['processed'] );
 
 			return $state;
 		}
@@ -598,12 +602,16 @@ class Admin {
 		 * 消してしまった場合に起きる.
 		 */
 		if ( $cursor_before === $state['last_id'] ) {
-			return new \WP_Error( 'kintone_to_wp_bulk_update', '取得位置が進みませんでした。処理を中止します。import_kintone_change_bulk_update_query で $id の条件を消していないか確認してください。' );
+			return new \WP_Error( 'kintone_to_wp_bulk_update', __( 'The cursor did not advance, so the bulk update was stopped. Check whether import_kintone_change_bulk_update_query removed the $id condition.', 'import-kintone' ) );
 		}
 
-		$state['message'] = null === $state['total']
-			? sprintf( '%d 件を反映しました。', $state['processed'] )
-			: sprintf( '%1$d / %2$d 件を反映しました。', $state['processed'], $state['total'] );
+		if ( null === $state['total'] ) {
+			/* translators: %d: number of records synced so far. */
+			$state['message'] = sprintf( __( 'Synced %d records.', 'import-kintone' ), $state['processed'] );
+		} else {
+			/* translators: 1: number of records synced so far, 2: total number of records. */
+			$state['message'] = sprintf( __( 'Synced %1$d of %2$d records.', 'import-kintone' ), $state['processed'], $state['total'] );
+		}
 
 		return $state;
 	}
@@ -664,7 +672,8 @@ class Admin {
 
 			$state['phase']     = 'done';
 			$state['completed'] = true;
-			$state['message']   = sprintf( '一括更新が完了しました。%1$d 件を反映し、%2$d 件を下書きにしました。', $state['processed'], $state['swept'] );
+			/* translators: 1: number of records synced, 2: number of posts drafted. */
+			$state['message'] = sprintf( __( 'Bulk update finished. Synced %1$d records and drafted %2$d posts.', 'import-kintone' ), $state['processed'], $state['swept'] );
 
 			return $state;
 		}
@@ -693,11 +702,12 @@ class Admin {
 		 * そのまま返すと呼び出し側が永久に同じチャンクを繰り返すので、ここで止める.
 		 */
 		if ( 0 === $drafted ) {
-			return new \WP_Error( 'kintone_to_wp_bulk_update', '記事を下書きにできませんでした。処理を中止します。' );
+			return new \WP_Error( 'kintone_to_wp_bulk_update', __( 'Could not draft the posts, so the bulk update was stopped.', 'import-kintone' ) );
 		}
 
-		$state['swept']  += $drafted;
-		$state['message'] = sprintf( '%d 件を下書きにしました。', $state['swept'] );
+		$state['swept'] += $drafted;
+		/* translators: %d: number of posts drafted so far. */
+		$state['message'] = sprintf( __( 'Drafted %d posts.', 'import-kintone' ), $state['swept'] );
 
 		return $state;
 	}
@@ -761,15 +771,15 @@ class Admin {
 		<div class="kintone-to-wp-bulk-update" id="kintone-to-wp-bulk-update">
 			<h3><?php esc_html_e( 'Bulk Update', 'import-kintone' ); ?></h3>
 			<p class="description">
-				<?php esc_html_e( '処理が終わるまでこの画面を開いたままにしてください。途中で閉じても記事は壊れません。', 'import-kintone' ); ?>
+				<?php esc_html_e( 'Keep this screen open until the update finishes. Closing it early will not damage your posts.', 'import-kintone' ); ?>
 			</p>
 			<div class="kintone-to-wp-bulk-update__track">
 				<div class="kintone-to-wp-bulk-update__bar" data-role="bar"></div>
 			</div>
 			<p class="kintone-to-wp-bulk-update__status" data-role="status"></p>
 			<p>
-				<button type="button" class="button" data-role="stop"><?php esc_html_e( '中止', 'import-kintone' ); ?></button>
-				<button type="button" class="button button-primary" data-role="retry" hidden><?php esc_html_e( '再開', 'import-kintone' ); ?></button>
+				<button type="button" class="button" data-role="stop"><?php esc_html_e( 'Stop', 'import-kintone' ); ?></button>
+				<button type="button" class="button button-primary" data-role="retry" hidden><?php esc_html_e( 'Resume', 'import-kintone' ); ?></button>
 			</p>
 		</div>
 		<?php
@@ -810,11 +820,11 @@ class Admin {
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( self::BULK_UPDATE_NONCE_ACTION ),
 				'i18n'    => array(
-					'starting'     => __( '処理を開始しています...', 'import-kintone' ),
-					'stopped'      => __( '中止しました。「再開」で続きから実行できます。', 'import-kintone' ),
-					'networkError' => __( '通信エラーが発生しました。「再開」で続きから実行できます。', 'import-kintone' ),
-					'unknownError' => __( '不明なエラーが発生しました。', 'import-kintone' ),
-					'sweeping'     => __( 'kintone に無くなった記事を下書きにしています...', 'import-kintone' ),
+					'starting'     => __( 'Starting...', 'import-kintone' ),
+					'stopped'      => __( 'Stopped. Use Resume to continue where it left off.', 'import-kintone' ),
+					'networkError' => __( 'A network error occurred. Use Resume to continue where it left off.', 'import-kintone' ),
+					'unknownError' => __( 'An unknown error occurred.', 'import-kintone' ),
+					'sweeping'     => __( 'Drafting the posts whose kintone record is gone...', 'import-kintone' ),
 				),
 			)
 		);
@@ -828,11 +838,11 @@ class Admin {
 	public function bulk_update_chunk() {
 
 		if ( ! check_ajax_referer( self::BULK_UPDATE_NONCE_ACTION, 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'セキュリティチェックに失敗しました。画面を再読み込みしてください。', 'import-kintone' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed. Please reload the screen.', 'import-kintone' ) ) );
 		}
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '権限がありません。', 'import-kintone' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to do this.', 'import-kintone' ) ) );
 		}
 
 		$run_id = isset( $_POST['run_id'] ) ? sanitize_text_field( wp_unslash( $_POST['run_id'] ) ) : '';
@@ -842,7 +852,7 @@ class Admin {
 		} else {
 
 			if ( ! preg_match( '/\A[0-9a-f.]{1,32}\z/', $run_id ) ) {
-				wp_send_json_error( array( 'message' => __( '実行 ID が不正です。', 'import-kintone' ) ) );
+				wp_send_json_error( array( 'message' => __( 'The run ID is invalid.', 'import-kintone' ) ) );
 			}
 
 			$state = get_transient( self::BULK_UPDATE_STATE_PREFIX . $run_id );
@@ -850,7 +860,7 @@ class Admin {
 			if ( ! is_array( $state ) ) {
 				wp_send_json_error(
 					array(
-						'message' => __( '実行状態が見つかりませんでした（時間切れの可能性があります）。記事は変更していません。最初からやり直してください。', 'import-kintone' ),
+						'message' => __( 'The saved progress was not found; it may have expired. No posts were changed. Please start over.', 'import-kintone' ),
 					)
 				);
 			}
