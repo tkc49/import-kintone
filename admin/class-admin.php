@@ -759,17 +759,17 @@ class Admin {
 
 		?>
 		<div class="kintone-to-wp-bulk-update" id="kintone-to-wp-bulk-update">
-			<h3><?php esc_html_e( 'Bulk Update', 'kintone-to-wp' ); ?></h3>
+			<h3><?php esc_html_e( 'Bulk Update', 'import-kintone' ); ?></h3>
 			<p class="description">
-				<?php esc_html_e( '処理が終わるまでこの画面を開いたままにしてください。途中で閉じても記事は壊れません。', 'kintone-to-wp' ); ?>
+				<?php esc_html_e( '処理が終わるまでこの画面を開いたままにしてください。途中で閉じても記事は壊れません。', 'import-kintone' ); ?>
 			</p>
 			<div class="kintone-to-wp-bulk-update__track">
 				<div class="kintone-to-wp-bulk-update__bar" data-role="bar"></div>
 			</div>
 			<p class="kintone-to-wp-bulk-update__status" data-role="status"></p>
 			<p>
-				<button type="button" class="button" data-role="stop"><?php esc_html_e( '中止', 'kintone-to-wp' ); ?></button>
-				<button type="button" class="button button-primary" data-role="retry" hidden><?php esc_html_e( '再開', 'kintone-to-wp' ); ?></button>
+				<button type="button" class="button" data-role="stop"><?php esc_html_e( '中止', 'import-kintone' ); ?></button>
+				<button type="button" class="button button-primary" data-role="retry" hidden><?php esc_html_e( '再開', 'import-kintone' ); ?></button>
 			</p>
 		</div>
 		<?php
@@ -810,11 +810,11 @@ class Admin {
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( self::BULK_UPDATE_NONCE_ACTION ),
 				'i18n'    => array(
-					'starting'     => __( '処理を開始しています...', 'kintone-to-wp' ),
-					'stopped'      => __( '中止しました。「再開」で続きから実行できます。', 'kintone-to-wp' ),
-					'networkError' => __( '通信エラーが発生しました。「再開」で続きから実行できます。', 'kintone-to-wp' ),
-					'unknownError' => __( '不明なエラーが発生しました。', 'kintone-to-wp' ),
-					'sweeping'     => __( 'kintone に無くなった記事を下書きにしています...', 'kintone-to-wp' ),
+					'starting'     => __( '処理を開始しています...', 'import-kintone' ),
+					'stopped'      => __( '中止しました。「再開」で続きから実行できます。', 'import-kintone' ),
+					'networkError' => __( '通信エラーが発生しました。「再開」で続きから実行できます。', 'import-kintone' ),
+					'unknownError' => __( '不明なエラーが発生しました。', 'import-kintone' ),
+					'sweeping'     => __( 'kintone に無くなった記事を下書きにしています...', 'import-kintone' ),
 				),
 			)
 		);
@@ -828,11 +828,11 @@ class Admin {
 	public function bulk_update_chunk() {
 
 		if ( ! check_ajax_referer( self::BULK_UPDATE_NONCE_ACTION, 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'セキュリティチェックに失敗しました。画面を再読み込みしてください。', 'kintone-to-wp' ) ) );
+			wp_send_json_error( array( 'message' => __( 'セキュリティチェックに失敗しました。画面を再読み込みしてください。', 'import-kintone' ) ) );
 		}
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '権限がありません。', 'kintone-to-wp' ) ) );
+			wp_send_json_error( array( 'message' => __( '権限がありません。', 'import-kintone' ) ) );
 		}
 
 		$run_id = isset( $_POST['run_id'] ) ? sanitize_text_field( wp_unslash( $_POST['run_id'] ) ) : '';
@@ -842,7 +842,7 @@ class Admin {
 		} else {
 
 			if ( ! preg_match( '/\A[0-9a-f.]{1,32}\z/', $run_id ) ) {
-				wp_send_json_error( array( 'message' => __( '実行 ID が不正です。', 'kintone-to-wp' ) ) );
+				wp_send_json_error( array( 'message' => __( '実行 ID が不正です。', 'import-kintone' ) ) );
 			}
 
 			$state = get_transient( self::BULK_UPDATE_STATE_PREFIX . $run_id );
@@ -850,7 +850,7 @@ class Admin {
 			if ( ! is_array( $state ) ) {
 				wp_send_json_error(
 					array(
-						'message' => __( '実行状態が見つかりませんでした（時間切れの可能性があります）。記事は変更していません。最初からやり直してください。', 'kintone-to-wp' ),
+						'message' => __( '実行状態が見つかりませんでした（時間切れの可能性があります）。記事は変更していません。最初からやり直してください。', 'import-kintone' ),
 					)
 				);
 			}

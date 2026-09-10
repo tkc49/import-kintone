@@ -7,8 +7,7 @@
  * Author:      Takashi Hosoya
  * Author URI:  http://ht79.info/
  * License:     GPLv2
- * Text Domain: kintone-to-wp
- * Domain Path: /languages
+ * Text Domain: import-kintone
  *
  * @package import-kintone
  */
@@ -39,18 +38,17 @@ define( 'KINTONE_TO_WP_PATH', __DIR__ );
 $data = get_file_data(
 	__FILE__,
 	array(
-		'ver'   => 'Version',
-		'langs' => 'Domain Path',
+		'ver' => 'Version',
 	)
 );
 
 define( 'KINTONE_TO_WP_VERSION', $data['ver'] );
-define( 'KINTONE_TO_WP_LANGS', $data['langs'] );
-load_plugin_textdomain(
-	'kintone-to-wp',
-	false,
-	dirname( plugin_basename( __FILE__ ) ) . KINTONE_TO_WP_LANGS
-);
+
+/*
+ * load_plugin_textdomain() は呼ばない。WordPress.org 配布のプラグインは
+ * 4.6 以降、翻訳が必要になった時点でコアが自動で読み込む。
+ * 同梱の翻訳ファイルも無いため Domain Path も持たない.
+ */
 
 /**
  * Initialize the plugin.
