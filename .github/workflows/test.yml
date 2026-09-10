@@ -1,0 +1,118 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: PHP Lint (${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 下限は readme.txt の Requires PHP と揃える.
+        php: ['7.4', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Lint
+        run: find . -path ./.git -prune -o -name '*.php' -print0 | xargs -0 -n1 -P4 php -l
+
+  bulk-update:
+    name: WP ${{ matrix.wp }} / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_test
+        ports:
+          - 3306:3306
+        # options: は docker create に渡るので、MySQL サーバの起動オプションは書けない。
+        # caching_sha2_password は PHP 7.4 の mysqlnd が対応しているので指定不要.
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # 直近のマイナー系列 + nightly。古い WP は当時の PHP と組ませる.
+        include:
+          - { wp: 'latest', php: '8.4' }
+          - { wp: 'latest', php: '7.4' }
+          - { wp: '7.0.4', php: '8.3' }
+          - { wp: '6.9.7', php: '8.2' }
+          - { wp: '6.8.8', php: '8.1' }
+          - { wp: 'nightly', php: '8.4' }
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: plugin
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli, gd, zip
+          tools: wp-cli
+          coverage: none
+
+      - name: Install WordPress ${{ matrix.wp }}
+        run: |
+          wp core download --version=${{ matrix.wp }} --path=wp --allow-root
+          wp config create --path=wp \
+            --dbname=wordpress_test --dbuser=root --dbpass=root --dbhost=127.0.0.1 \
+            --allow-root
+          wp core install --path=wp \
+            --url=http://localhost --title='import-kintone CI' \
+            --admin_user=admin --admin_password=admin --admin_email=ci@example.com \
+            --skip-email --allow-root
+          wp core version --path=wp --allow-root
+
+      - name: Activate the plugin
+        run: |
+          cp -r plugin wp/wp-content/plugins/import-kintone
+          wp plugin activate import-kintone --path=wp --allow-root
+
+      - name: Run verification tests
+        env:
+          WP_LOAD_PATH: ${{ github.workspace }}/wp/wp-load.php
+        run: |
+          status=0
+          for f in wp/wp-content/plugins/import-kintone/tests/verify-*.php; do
+            echo "::group::$(basename "$f")"
+            php "$f" || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+
+  plugin-check:
+    name: WordPress Plugin Check
+    runs-on: ubuntu-latest
+    # readme.txt の Tested up to が古いなど、既知の指摘で赤くなる。
+    # Phase 2 でカバレッジを埋めてヘッダを更新したら continue-on-error を外す.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: import-kintone
+
+      - uses: WordPress/plugin-check-action@v1
+        with:
+          build-dir: ./import-kintone
+          # .distignore で配布物から除外しているものは検査対象外にする.
+          exclude-directories: tests,.github,.wordpress-org

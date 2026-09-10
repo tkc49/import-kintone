@@ -1,12 +1,6 @@
 <?php
 /**
- * 一括更新（mark and sweep）の検証スクリプト.
- *
- * kintone への通信は pre_http_request で差し替え、反映先も専用の
- * カスタム投稿タイプに向けるので、実際の kintone にも既存記事にも触らない。
- *
- * 実行:
- *   php tests/verify-bulk-update.php
+ * 一括更新（mark and sweep）の検証.
  *
  * 特に Test C は 1.14.2 で直した「取得に失敗すると記事が全部下書きのまま残る」
  * の回帰防止。チャンク処理を触るときは必ず通すこと.
@@ -14,196 +8,154 @@
  * @package import-kintone
  */
 
-require_once __DIR__ . '/../../../../wp-load.php';
+require_once __DIR__ . '/bootstrap.php';
 
 use publish_kintone_data\Admin;
 
-// ---------------------------------------------------------------- テスト基盤.
-$failures = 0;
-function ok( $condition, $label ) {
-	global $failures;
-	if ( $condition ) {
-		echo "  \033[32mPASS\033[0m {$label}\n";
-	} else {
-		echo "  \033[31mFAIL\033[0m {$label}\n";
-		++$failures;
-	}
-}
+pkd_set_field_map(
+	array(
+		'post_title'    => 'title',
+		'custom_fields' => array( 'title' => 'verify_title' ),
+	)
+);
 
-// ------------------------------------------------- 実データを触らないための隔離.
-register_post_type( 'pkd_verify', array( 'public' => false, 'supports' => array( 'title', 'editor', 'custom-fields' ) ) );
+// ページングを短くして、複数チャンクの挙動を見る.
+add_filter(
+	'import_kintone_bulk_update_chunk_size',
+	function () {
+		return 2;
+	},
+	99
+);
 
-add_filter( 'publish_kintone_data_reflect_post_type', function () { return 'pkd_verify'; }, 99 );
-add_filter( 'publish_kintone_data_kintone_field_code_for_post_title', function () { return 'title'; }, 99 );
-add_filter( 'publish_kintone_data_kintone_field_code_for_post_contents', function () { return ''; }, 99 );
-add_filter( 'publish_kintone_data_kintone_field_code_for_featured_image', function () { return ''; }, 99 );
-add_filter( 'publish_kintone_data_kintone_field_code_for_terms', function () { return array(); }, 99 );
-add_filter( 'publish_kintone_data_setting_custom_fields', function () { return array( 'title' => 'verify_title' ); }, 99 );
+$stub_records   = array();
+$stub_fail_from = null;
 
-// 実サイトと同じく、同期した記事は公開状態にする.
-$publish = function ( $data ) { $data['post_status'] = 'publish'; return $data; };
-add_filter( 'import_kintone_insert_post_data', $publish, 99 );
-add_filter( 'import_kintone_update_post_data', $publish, 99 );
+/**
+ * records.json を返すスタブ.
+ */
+pkd_set_http_handler(
+	function ( $url, $query ) use ( &$stub_records, &$stub_fail_from ) {
 
-// ページングを短くして、複数ページの挙動を見る.
-add_filter( 'import_kintone_bulk_update_chunk_size', function () { return 2; }, 99 );
-
-// ------------------------------------------------------------ kintone スタブ.
-$GLOBALS['stub_records'] = array();
-$GLOBALS['stub_fail_after'] = null; // この件数を返したあとのページでエラーにする.
-$GLOBALS['stub_calls'] = 0;
-$GLOBALS['stub_single_calls'] = 0;
-
-function make_record( $id, $title ) {
-	return array(
-		'$id'   => array( 'type' => '__ID__', 'value' => (string) $id ),
-		'title' => array( 'type' => 'SINGLE_LINE_TEXT', 'value' => $title ),
-	);
-}
-
-add_filter( 'pre_http_request', function ( $preempt, $args, $url ) {
-
-	// 単数形 record.json = save_post 経由の1件取り直し。走ってはいけない.
-	if ( false !== strpos( $url, '/k/v1/record.json' ) ) {
-		++$GLOBALS['stub_single_calls'];
-		return array(
-			'body'     => wp_json_encode( array( 'record' => make_record( 999, 'single' ) ) ),
-			'response' => array( 'code' => 200, 'message' => 'OK' ),
-			'headers'  => array(),
-			'cookies'  => array(),
-		);
-	}
-
-	if ( false === strpos( $url, '/k/v1/records.json' ) ) {
-		return $preempt;
-	}
-
-	++$GLOBALS['stub_calls'];
-
-	$parts = wp_parse_url( $url );
-	parse_str( $parts['query'], $q );
-	preg_match( '/\$id > (\d+)/', $q['query'], $m );
-	$last_id = isset( $m[1] ) ? (int) $m[1] : 0;
-
-	$page = array();
-	foreach ( $GLOBALS['stub_records'] as $record ) {
-		if ( (int) $record['$id']['value'] > $last_id ) {
-			$page[] = $record;
+		// 単数形 record.json = save_post 経由の1件取り直し。一括更新中に走ってはいけない.
+		if ( false !== strpos( $url, '/k/v1/record.json' ) ) {
+			return pkd_json_response( array( 'record' => pkd_record( 999, array( 'title' => pkd_field( 'SINGLE_LINE_TEXT', 'single' ) ) ) ) );
 		}
-		if ( count( $page ) >= 2 ) {
-			break;
+
+		if ( false === strpos( $url, '/k/v1/records.json' ) ) {
+			return null;
 		}
-	}
 
-	// 2ページ目以降で失敗させるシナリオ.
-	if ( null !== $GLOBALS['stub_fail_after'] && $last_id >= $GLOBALS['stub_fail_after'] ) {
-		return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
-	}
+		preg_match( '/\$id > (\d+)/', $query['query'], $m );
+		$last_id = isset( $m[1] ) ? (int) $m[1] : 0;
 
-	$body = array( 'records' => $page );
-	if ( isset( $q['totalCount'] ) ) {
-		$body['totalCount'] = (string) count( $GLOBALS['stub_records'] );
-	}
+		if ( null !== $stub_fail_from && $last_id >= $stub_fail_from ) {
+			return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
+		}
 
-	return array(
-		'body'     => wp_json_encode( $body ),
-		'response' => array( 'code' => 200, 'message' => 'OK' ),
-		'headers'  => array(),
-		'cookies'  => array(),
-	);
-}, 10, 3 );
+		$page = array();
+		foreach ( $stub_records as $record ) {
+			if ( (int) $record['$id']['value'] > $last_id ) {
+				$page[] = $record;
+			}
+			if ( count( $page ) >= 2 ) {
+				break;
+			}
+		}
 
-// ------------------------------------------------------------------ ヘルパ.
-function verify_posts() {
-	$out = array();
-	foreach ( get_posts( array( 'post_type' => 'pkd_verify', 'post_status' => 'any', 'posts_per_page' => -1 ) ) as $post ) {
-		$out[ get_post_meta( $post->ID, 'kintone_record_id', true ) ] = $post->post_status;
+		$body = array( 'records' => $page );
+		if ( isset( $query['totalCount'] ) ) {
+			$body['totalCount'] = (string) count( $stub_records );
+		}
+
+		return pkd_json_response( $body );
 	}
-	ksort( $out );
-	return $out;
+);
+
+/**
+ * テスト用のレコードを作る.
+ *
+ * @param int $id .
+ *
+ * @return array
+ */
+function pkd_bulk_record( $id ) {
+	return pkd_record( $id, array( 'title' => pkd_field( 'SINGLE_LINE_TEXT', 'レコード' . $id ) ) );
 }
 
-function cleanup_verify_posts() {
-	foreach ( get_posts( array( 'post_type' => 'pkd_verify', 'post_status' => 'any', 'posts_per_page' => -1, 'fields' => 'ids' ) ) as $id ) {
-		wp_delete_post( $id, true );
-	}
-}
-
-cleanup_verify_posts();
 $real_posts_before = wp_count_posts( 'post' )->publish;
 $admin             = new Admin();
 
 // ============================================================ Test A: 正常系.
-echo "\nTest A: 3件を同期する\n";
-$GLOBALS['stub_records'] = array( make_record( 1, 'レコード1' ), make_record( 2, 'レコード2' ), make_record( 3, 'レコード3' ) );
+pkd_section( 'Test A: 3件を同期する' );
+$stub_records = array( pkd_bulk_record( 1 ), pkd_bulk_record( 2 ), pkd_bulk_record( 3 ) );
 ob_start();
 $admin->bulk_update();
 $log_a = ob_get_clean();
 
-$state_a = verify_posts();
-ok( 3 === count( $state_a ), '3件の記事ができた（実際: ' . count( $state_a ) . '件）' );
-ok( array( 'publish', 'publish', 'publish' ) === array_values( $state_a ), '3件とも公開状態' );
-ok( false !== strpos( $log_a, '一括更新が完了しました' ), '完了メッセージが出た' );
+$state_a = pkd_post_statuses();
+pkd_ok( 3 === count( $state_a ), '3件の記事ができた（実際: ' . count( $state_a ) . '件）' );
+pkd_ok( array( 'publish', 'publish', 'publish' ) === array_values( $state_a ), '3件とも公開状態' );
+pkd_ok( false !== strpos( $log_a, '一括更新が完了しました' ), '完了メッセージが出た' );
 
 // ============ Test B: kintone から1件消えた -> sweep で下書きになるか.
-echo "\nTest B: kintone 側でレコード2が消える\n";
-$GLOBALS['stub_records'] = array( make_record( 1, 'レコード1' ), make_record( 3, 'レコード3' ) );
+pkd_section( 'Test B: kintone 側でレコード2が消える' );
+$stub_records = array( pkd_bulk_record( 1 ), pkd_bulk_record( 3 ) );
 ob_start();
 $admin->bulk_update();
-$log_b = ob_get_clean();
+ob_get_clean();
 
-$state_b = verify_posts();
-ok( 'publish' === $state_b[1], 'レコード1 は公開のまま' );
-ok( 'draft' === $state_b[2], 'kintone から消えたレコード2 は下書きになった' );
-ok( 'publish' === $state_b[3], 'レコード3 は公開のまま' );
+$state_b = pkd_post_statuses();
+pkd_ok( 'publish' === $state_b[1], 'レコード1 は公開のまま' );
+pkd_ok( 'draft' === $state_b[2], 'kintone から消えたレコード2 は下書きになった' );
+pkd_ok( 'publish' === $state_b[3], 'レコード3 は公開のまま' );
 
 // ==== Test C: 途中で取得に失敗 -> 記事に触らないこと（1.14.2 の回帰防止）.
-echo "\nTest C: 2ページ目の取得に失敗する\n";
-// レコード2を復活させ、まず全件を公開状態に戻す.
-$GLOBALS['stub_records'] = array( make_record( 1, 'レコード1' ), make_record( 2, 'レコード2' ), make_record( 3, 'レコード3' ) );
+pkd_section( 'Test C: 2ページ目の取得に失敗する' );
+$stub_records = array( pkd_bulk_record( 1 ), pkd_bulk_record( 2 ), pkd_bulk_record( 3 ) );
 ob_start();
 $admin->bulk_update();
 ob_get_clean();
-ok( array( 'publish', 'publish', 'publish' ) === array_values( verify_posts() ), '前提: 3件とも公開に戻っている' );
+pkd_ok( array( 'publish', 'publish', 'publish' ) === array_values( pkd_post_statuses() ), '前提: 3件とも公開に戻っている' );
 
-$GLOBALS['stub_fail_after'] = 2; // $id > 2 のページでタイムアウト.
+$stub_fail_from = 2; // $id > 2 のページでタイムアウト.
 ob_start();
 $admin->bulk_update();
-$log_c = ob_get_clean();
-$GLOBALS['stub_fail_after'] = null;
+$log_c          = ob_get_clean();
+$stub_fail_from = null;
 
-$state_c = verify_posts();
-ok( array( 'publish', 'publish', 'publish' ) === array_values( $state_c ), '取得に失敗しても記事は公開のまま（下書きにされない）' );
-ok( false !== strpos( $log_c, '記事は変更していません' ), '中止メッセージが出た' );
-ok( false === strpos( $log_c, '一括更新が完了しました' ), '完了とは報告していない' );
+pkd_ok( array( 'publish', 'publish', 'publish' ) === array_values( pkd_post_statuses() ), '取得に失敗しても記事は公開のまま（下書きにされない）' );
+pkd_ok( false !== strpos( $log_c, '記事は変更していません' ), '中止メッセージが出た' );
+pkd_ok( false === strpos( $log_c, '一括更新が完了しました' ), '完了とは報告していない' );
 
 // ================================ Test D: save_post 経由の二重同期が止まるか.
-echo "\nTest D: 一括更新中に save_post 経由の再取得が走らない\n";
-$GLOBALS['stub_records'] = array( make_record( 1, 'レコード1' ), make_record( 2, 'レコード2' ), make_record( 3, 'レコード3' ) );
-$GLOBALS['stub_calls']        = 0;
-$GLOBALS['stub_single_calls'] = 0;
+pkd_section( 'Test D: 一括更新中に save_post 経由の再取得が走らない' );
+$stub_records = array( pkd_bulk_record( 1 ), pkd_bulk_record( 2 ), pkd_bulk_record( 3 ) );
+pkd_set_http_handler( $GLOBALS['pkd_http_handler'] ); // ログをリセット.
 ob_start();
 $admin->bulk_update();
 ob_get_clean();
-// 3件 / chunk 2件 = 2ページ + 空ページ = 3回。1件ずつ取り直していれば増える.
-ok( 3 === $GLOBALS['stub_calls'], 'records.json への問い合わせは3回だけ（実際: ' . $GLOBALS['stub_calls'] . '回）' );
-ok( 0 === $GLOBALS['stub_single_calls'], 'record.json（1件取り直し）は0回（実際: ' . $GLOBALS['stub_single_calls'] . '回）' );
+pkd_ok( 3 === pkd_http_count( '/k/v1/records.json' ), 'records.json への問い合わせは3回だけ（実際: ' . pkd_http_count( '/k/v1/records.json' ) . '回）' );
+pkd_ok( 0 === pkd_http_count( '/k/v1/record.json?' ), 'record.json（1件取り直し）は0回' );
 
 // ======================================= Test E: 実データに触れていないこと.
-echo "\nTest E: 隔離\n";
-ok( $real_posts_before === wp_count_posts( 'post' )->publish, "post タイプの公開記事数が変わっていない（{$real_posts_before}件）" );
+pkd_section( 'Test E: 隔離' );
+pkd_ok( $real_posts_before === wp_count_posts( 'post' )->publish, "post タイプの公開記事数が変わっていない（{$real_posts_before}件）" );
 
 // ========================= Test F: カーソルが進まないクエリで無限ループしない.
-echo "\nTest F: カーソルが進まないクエリでも止まる\n";
-add_filter( 'import_kintone_change_bulk_update_query', function () { return 'order by \ asc limit 2'; }, 99 );
-$GLOBALS['stub_calls'] = 0;
+pkd_section( 'Test F: カーソルが進まないクエリでも止まる' );
+add_filter(
+	'import_kintone_change_bulk_update_query',
+	function () {
+		return 'order by $id asc limit 2';
+	},
+	99
+);
+pkd_set_http_handler( $GLOBALS['pkd_http_handler'] );
 ob_start();
 $admin->bulk_update();
 $log_f = ob_get_clean();
-ok( false !== strpos( $log_f, '取得位置が進みませんでした' ), '無限ループせず中止した' );
-ok( $GLOBALS['stub_calls'] <= 2, 'kintone を叩き続けていない（実際: ' . $GLOBALS['stub_calls'] . '回）' );
+pkd_ok( false !== strpos( $log_f, '取得位置が進みませんでした' ), '無限ループせず中止した' );
+pkd_ok( pkd_http_count( '/k/v1/records.json' ) <= 2, 'kintone を叩き続けていない（実際: ' . pkd_http_count( '/k/v1/records.json' ) . '回）' );
 
-cleanup_verify_posts();
-
-echo "\n" . ( 0 === $failures ? "\033[32m全て成功\033[0m\n" : "\033[31m{$failures} 件失敗\033[0m\n" );
-exit( $failures > 0 ? 1 : 0 );
+pkd_finish();
