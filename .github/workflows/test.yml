@@ -109,10 +109,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: import-kintone
+          path: src
+
+      # リポジトリ直下をそのまま検査すると、配布物には入らない .gitignore などを
+      # hidden_files として指摘されてしまう。.distignore を適用した配布物相当を
+      # 組んでから検査する.
+      - name: Build the distributable
+        run: |
+          mkdir -p import-kintone
+          rsync -a --exclude-from=src/.distignore src/ import-kintone/
+          echo "--- 配布物に含まれるファイル ---"
+          find import-kintone -type f | sort
 
       - uses: WordPress/plugin-check-action@v1
         with:
           build-dir: ./import-kintone
-          # .distignore で配布物から除外しているものは検査対象外にする.
-          exclude-directories: tests,.github,.wordpress-org

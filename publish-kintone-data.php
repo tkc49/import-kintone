@@ -32,6 +32,10 @@
 
 namespace publish_kintone_data;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 define( 'KINTONE_TO_WP_URL', plugins_url( '', __FILE__ ) );
 define( 'KINTONE_TO_WP_PATH', __DIR__ );
 

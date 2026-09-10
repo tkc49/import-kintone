@@ -1,4 +1,13 @@
 <?php
+/**
+ * Shortcode
+ *
+ * @package import-kintone
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 /**
  * Shortcodeクラス
@@ -54,8 +63,6 @@ class Shortcode {
 			$value = date_i18n( $format, $value );
 		}
 		return $value;
-
 	}
-
 }
 new Shortcode();
