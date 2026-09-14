@@ -4,7 +4,7 @@ Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.16.0
+Stable tag: 1.16.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -157,6 +157,10 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.16.1 (2026-09-10) =
+* [Changed] Rewrote the plugin description. It was a single sentence and did not say which way the sync runs, what the field values turn into, or that records arrive as drafts
+* [Fixed] Removed an unrelated paragraph that had been pasted into the installation steps, and replaced them with the actual setup: API token, field mapping, webhook URL and the first bulk update. The folder name given there was also the old one
 
 = 1.16.0 (2026-09-10) =
 * [Fixed] The text domain did not match the plugin slug, so translations were never loaded. WordPress.org ships language packs named after the slug (`import-kintone`), but the code declared `kintone-to-wp`. Nothing was translated before this release, so no existing translation breaks
