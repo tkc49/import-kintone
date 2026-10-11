@@ -247,6 +247,26 @@ pkd_ok( 'image/png' === get_post_mime_type( $attachment_id ), 'MIME タイプが
 pkd_ok( file_exists( get_attached_file( $attachment_id ) ), '実ファイルがアップロードディレクトリに存在する' );
 pkd_ok( has_post_thumbnail( $post->ID ), 'アイキャッチが設定された' );
 pkd_ok( pkd_http_count( '/k/v1/file.json' ) > 0, 'file.json からファイルを取得している' );
+pkd_ok( 'sample.png' === get_the_title( $attachment_id ), '添付のタイトルは kintone のファイル名のまま' );
+pkd_ok( 0 === strpos( get_post_field( 'post_name', $attachment_id ), $post->ID . '_sample-png' ), '添付のスラッグに投稿IDが付く' );
+
+// 取り込み直すと、アイキャッチが新しい添付に差し替わる.
+$thumbnail_id     = (int) get_post_thumbnail_id( $post->ID );
+$post             = pkd_sync_one(
+	pkd_record(
+		14,
+		array(
+			'title' => pkd_field( 'SINGLE_LINE_TEXT', '添付あり' ),
+			'file'  => pkd_field( 'FILE', $file_value ),
+			'thumb' => pkd_field( 'FILE', $file_value ),
+		)
+	)
+);
+$new_thumbnail_id = (int) get_post_thumbnail_id( $post->ID );
+pkd_ok( $new_thumbnail_id > 0 && $new_thumbnail_id !== $thumbnail_id, '取り込み直すとアイキャッチが新しい添付になる' );
+pkd_ok( null === get_post( $thumbnail_id ), '古いアイキャッチの添付が削除されている' );
+pkd_ok( 0 === strpos( get_post_field( 'post_name', $new_thumbnail_id ), $post->ID . '_sample-png' ), '取り込み直した添付のスラッグにも投稿IDが付く' );
+$attachment_id = (int) get_post_meta( $post->ID, 'f_file', true );
 
 // 空の FILE で添付が消える.
 $post = pkd_sync_one(
