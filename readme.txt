@@ -4,7 +4,7 @@ Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.16.1
+Stable tag: 1.16.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -157,6 +157,9 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.16.2 (2026-10-12) =
+* [Fixed] Importing a kintone file slowed down as more attachments shared the same file name. The attachment slug was built from the kintone file name, so on sites where every file is called something like `thumbnail.jpg` WordPress had to try numbered slugs one by one until it found a free one. The slug now starts with the post ID. The attachment title, file name and file URL do not change, and attachments that were already imported are left as they are
 
 = 1.16.1 (2026-09-10) =
 * [Changed] Rewrote the plugin description. It was a single sentence and did not say which way the sync runs, what the field values turn into, or that records arrive as drafts
