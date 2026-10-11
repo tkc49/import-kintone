@@ -593,8 +593,11 @@ class Publish_Kintone_Data {
 		$post_author = '';
 		$post_author = apply_filters( 'import_kintone_insert_post_author', $post_author );
 
+		// スラッグはタイトルから作られる。kintone のファイル名のままだと、同じ名前の添付が多いときに
+		// WordPress が空いている番号を1件ずつ探して遅くなるため、投稿IDを付けたファイル名で指定する.
 		$attachment = array(
 			'post_title'     => $temp_base_data['name'],
+			'post_name'      => sanitize_title( $tmp_filename ),
 			'post_mime_type' => $file['type'],
 			'post_parent'    => $post_id,
 			'post_author'    => $post_author,
