@@ -267,6 +267,31 @@ pkd_ok( $new_thumbnail_id > 0 && $new_thumbnail_id !== $thumbnail_id, '取り込
 pkd_ok( null === get_post( $thumbnail_id ), '古いアイキャッチの添付が削除されている' );
 pkd_ok( 0 === strpos( get_post_field( 'post_name', $new_thumbnail_id ), $post->ID . '_sample-png' ), '取り込み直した添付のスラッグにも投稿IDが付く' );
 $attachment_id = (int) get_post_meta( $post->ID, 'f_file', true );
+pkd_ok( array() === glob( get_temp_dir() . $post->ID . '_sample*' ), '一時ファイルが残っていない' );
+
+// 許可されていない種類のファイルは取り込まず、既存の添付を残す.
+$post = pkd_sync_one(
+	pkd_record(
+		14,
+		array(
+			'title' => pkd_field( 'SINGLE_LINE_TEXT', '添付あり' ),
+			'file'  => pkd_field(
+				'FILE',
+				array(
+					array(
+						'fileKey'     => 'def456',
+						'name'        => 'sample.php',
+						'contentType' => 'application/x-php',
+						'size'        => '95',
+					),
+				)
+			),
+		)
+	)
+);
+pkd_ok( (int) get_post_meta( $post->ID, 'f_file', true ) === $attachment_id, '取り込めないファイルのときは、メタの attachment ID が変わらない' );
+pkd_ok( 'attachment' === get_post_type( $attachment_id ), '取り込めないファイルのときは、既存の添付が消えない' );
+pkd_ok( array() === glob( get_temp_dir() . $post->ID . '_sample*' ), '取り込めなかったときも一時ファイルが残っていない' );
 
 // 空の FILE で添付が消える.
 $post = pkd_sync_one(

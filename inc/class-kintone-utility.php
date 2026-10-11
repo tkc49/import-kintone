@@ -57,7 +57,7 @@ class Kintone_Utility {
 
 				if ( isset( $return_value['message'] ) && isset( $return_value['code'] ) ) {
 
-					echo '<div class="error fade"><p><strong>' . $return_value['message'] . '</strong></p></div>';
+					echo '<div class="error fade"><p><strong>' . esc_html( $return_value['message'] ) . '</strong></p></div>';
 
 					return new \WP_Error( $return_value['code'], $return_value['message'] );
 				}

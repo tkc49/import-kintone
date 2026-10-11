@@ -556,39 +556,32 @@ class Publish_Kintone_Data {
 
 		$file_data = $this->get_kintone_temp_file( $temp_base_data['fileKey'] );
 
-		$upload_dir = wp_upload_dir();
-		$tmp_dir    = $upload_dir['basedir'] . '/import_kintone';
-
-		$tmp_filename = $post_id . '_' . $temp_base_data['name'];
-		$tmp_type     = $temp_base_data['contentType'];
-		$tmp_size     = $temp_base_data['size'];
-
-		if ( ! file_exists( $tmp_dir ) ) {
-			if ( mkdir( $tmp_dir, 0777 ) ) {
-				chmod( $tmp_dir, 0777 );
-			}
-		}
-
-		$fp = fopen( $tmp_dir . '/' . $tmp_filename, 'w' );
-		fwrite( $fp, $file_data );
-		fclose( $fp );
-		chmod( $tmp_dir . '/' . $tmp_filename, 0777 );
-
-		$upload['tmp_name'] = $tmp_dir . '/' . $tmp_filename;
-		$upload['name']     = $tmp_filename;
-		$upload['type']     = $tmp_type;
-		$upload['error']    = UPLOAD_ERR_OK;
-		$upload['size']     = $tmp_size;
-
 		include_once ABSPATH . 'wp-admin/includes/file.php';
 		include_once ABSPATH . 'wp-admin/includes/media.php';
 		include_once ABSPATH . 'wp-admin/includes/image.php';
+		include_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+		include_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
 
-		$overrides = array(
-			'test_form' => false,
-			'action'    => '',
-		);
-		$file      = wp_handle_upload( $upload, $overrides );
+		$tmp_filename = $post_id . '_' . $temp_base_data['name'];
+
+		// 一時ファイルはシステムの一時ディレクトリに置く。書き込み先は自分で作った一時ファイルなので、
+		// WP_Filesystem() の方式判定（FTP 認証を求めることがある）を通さず Direct で書く.
+		$tmp_path   = wp_tempnam( $tmp_filename );
+		$filesystem = new \WP_Filesystem_Direct( null );
+		$filesystem->put_contents( $tmp_path, $file_data );
+
+		$upload['tmp_name'] = $tmp_path;
+		$upload['name']     = $tmp_filename;
+		$upload['type']     = $temp_base_data['contentType'];
+		$upload['error']    = UPLOAD_ERR_OK;
+		$upload['size']     = $temp_base_data['size'];
+
+		// 成功すると一時ファイルはアップロードディレクトリへコピーされたうえで消される.
+		$file = wp_handle_sideload( $upload, array( 'test_form' => false ) );
+		if ( isset( $file['error'] ) ) {
+			wp_delete_file( $tmp_path );
+			return;
+		}
 
 		$post_author = '';
 		$post_author = apply_filters( 'import_kintone_insert_post_author', $post_author );
@@ -625,9 +618,6 @@ class Publish_Kintone_Data {
 		if ( ! is_wp_error( $aid ) ) {
 			wp_update_attachment_metadata( $aid, $attach_data );  /*If there is no error, update the metadata of the newly uploaded image*/
 		}
-
-		// ディレクトリー削除.
-		@unlink( $tmp_dir . '/' . $tmp_filename );
 	}
 
 	/**
