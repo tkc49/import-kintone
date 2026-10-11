@@ -565,10 +565,12 @@ class Publish_Kintone_Data {
 		$tmp_filename = $post_id . '_' . $temp_base_data['name'];
 
 		// 一時ファイルはシステムの一時ディレクトリに置く。書き込み先は自分で作った一時ファイルなので、
-		// WP_Filesystem() の方式判定（FTP 認証を求めることがある）を通さず Direct で書く.
+		// WP_Filesystem() の方式判定（FTP 認証を求めることがある）を通さず Direct で書く。
+		// 権限を省くと WP_Filesystem() でしか定義されない FS_CHMOD_FILE を参照して落ちるため、明示する.
+		// アップロードディレクトリへコピーした後の権限は、WordPress がディレクトリに合わせて付け直す.
 		$tmp_path   = wp_tempnam( $tmp_filename );
 		$filesystem = new \WP_Filesystem_Direct( null );
-		$filesystem->put_contents( $tmp_path, $file_data );
+		$filesystem->put_contents( $tmp_path, $file_data, 0600 );
 
 		$upload['tmp_name'] = $tmp_path;
 		$upload['name']     = $tmp_filename;
