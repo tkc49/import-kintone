@@ -4,7 +4,7 @@ Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.16.2
+Stable tag: 1.16.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -157,6 +157,12 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.16.3 (2026-10-12) =
+* [Fixed] When kintone returned a file WordPress does not accept (a `.php` file, for example), the import created an empty attachment and deleted the one already attached. It now skips the file and keeps the existing attachment
+* [Fixed] Error messages returned by the kintone API were printed on the admin screen without escaping
+* [Changed] Files are now imported through `wp_handle_sideload()` instead of `wp_handle_upload()`. **If another plugin on your site hooks into `wp_handle_sideload_prefilter`, `wp_handle_sideload_overrides` or the `sideload` context of the `wp_handle_upload` filter (image optimizers, file renamers, security scanners and the like), it now runs on files imported from kintone too.** Before this release those hooks were not called, and the `wp_handle_upload` filter received the `upload` context
+* [Changed] The temporary file is now written to the system temp directory. The plugin no longer creates `wp-content/uploads/import_kintone/` with 0777 permissions. A directory left there by an earlier version is no longer used and can be deleted
 
 = 1.16.2 (2026-10-12) =
 * [Fixed] Importing a kintone file slowed down as more attachments shared the same file name. The attachment slug was built from the kintone file name, so on sites where every file is called something like `thumbnail.jpg` WordPress had to try numbered slugs one by one until it found a free one. The slug now starts with the post ID. The attachment title, file name and file URL do not change, and attachments that were already imported are left as they are
@@ -322,6 +328,9 @@ Release Date: October 9th, 2020
 * 1.0.0 - First Release
 
 == Upgrade Notice ==
+
+= 1.16.3 =
+Files from kintone are now imported through `wp_handle_sideload()`. If your site runs a plugin that hooks into WordPress file uploads (image optimizers, file renamers, security scanners and the like), it may now also run on files imported from kintone.
 
 = 1.16.0 =
 Translations were never loaded because the text domain did not match the plugin slug. This release fixes that, so translations from translate.wordpress.org now apply. The bulk update panel is now in English rather than Japanese.
