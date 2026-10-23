@@ -4,7 +4,7 @@ Tags: cybozu, kintone, crm, database, custom field
 Requires at least: 4.9
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.16.3
+Stable tag: 1.16.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -157,6 +157,9 @@ https://www.cybozu.com/jp/inquiry/
 2. screenshot-2.png
 
 == Changelog ==
+
+= 1.16.4 (2026-10-23) =
+* [Fixed] A delete notification sent through `kintone.proxy` did not delete the WordPress post. `kintone.proxy` always sends a request body, so the notification arrived with an empty `{}` body. The plugin only read `type` and `recordId` from the query string when the body was missing, so it skipped the deletion and returned success. It now uses the query string whenever the body is empty. Delete notifications from kintone's standard webhook were not affected
 
 = 1.16.3 (2026-10-12) =
 * [Fixed] When kintone returned a file WordPress does not accept (a `.php` file, for example), the import created an empty attachment and deleted the one already attached. It now skips the file and keeps the existing attachment
