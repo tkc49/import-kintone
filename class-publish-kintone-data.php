@@ -69,6 +69,36 @@ class Publish_Kintone_Data {
 	}
 
 	/**
+	 * Webhook のリクエストから、sync() に渡すデータを組み立てる.
+	 *
+	 * kintone の Webhook は本文の JSON に type / recordId / record を入れて送ってくる。
+	 * 一方 kintone.proxy で呼ぶ場合は、URL のクエリで type / recordId を渡せるようにしている。
+	 * kintone.proxy は本文を省略できないため、削除通知では空の {} が付いてくることがある。
+	 * json_decode すると null ではなく空配列になるので、本文に中身が無いときはクエリを使う.
+	 *
+	 * @param string $body  リクエスト本文.
+	 * @param array  $query クエリパラメータ（$_GET）.
+	 *
+	 * @return array
+	 */
+	public static function parse_webhook_request( $body, $query ) {
+
+		$data = json_decode( (string) $body, true );
+		if ( is_array( $data ) && ! empty( $data ) ) {
+			return $data;
+		}
+
+		$data = array();
+		foreach ( array( 'type', 'recordId' ) as $key ) {
+			if ( isset( $query[ $key ] ) && '' !== $query[ $key ] ) {
+				$data[ $key ] = sanitize_text_field( wp_unslash( $query[ $key ] ) );
+			}
+		}
+
+		return $data;
+	}
+
+	/**
 	 * Webhookの処理スタート
 	 *
 	 * @return void
@@ -81,18 +111,7 @@ class Publish_Kintone_Data {
 			exit;
 		}
 
-		$kintone_data_json_by_webhook = file_get_contents( 'php://input' );
-		$kintone_data_by_webhook      = json_decode( $kintone_data_json_by_webhook, true );
-
-		if ( null === $kintone_data_by_webhook ) {
-			if ( isset( $_GET['type'] ) && $_GET['type'] ) {
-				$kintone_data_by_webhook['type'] = $_GET['type'];
-			}
-
-			if ( isset( $_GET['recordId'] ) && $_GET['recordId'] ) {
-				$kintone_data_by_webhook['recordId'] = $_GET['recordId'];
-			}
-		}
+		$kintone_data_by_webhook = self::parse_webhook_request( file_get_contents( 'php://input' ), $_GET );
 
 		$resp = $this->sync( $kintone_data_by_webhook );
 		if ( is_wp_error( $resp ) ) {

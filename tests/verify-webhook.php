@@ -131,6 +131,40 @@ $sync->sync(
 );
 pkd_ok( $before === count( pkd_post_statuses() ), '存在しないレコードの削除で他の記事に影響しない' );
 
+// ===================================================== リクエストの組み立て.
+pkd_section( 'Webhook リクエストの組み立て' );
+
+$delete_query = array(
+	'type'     => 'DELETE_RECORD',
+	'recordId' => '22',
+);
+
+$parsed = Publish_Kintone_Data::parse_webhook_request(
+	wp_json_encode(
+		array(
+			'type'     => 'DELETE_RECORD',
+			'recordId' => '5',
+		)
+	),
+	array()
+);
+pkd_ok( 'DELETE_RECORD' === $parsed['type'] && '5' === $parsed['recordId'], 'kintone の Webhook: 本文の JSON をそのまま使う' );
+
+$parsed = Publish_Kintone_Data::parse_webhook_request( '', $delete_query );
+pkd_ok( 'DELETE_RECORD' === $parsed['type'] && '22' === $parsed['recordId'], 'kintone.proxy: 本文が空ならクエリを使う' );
+
+$parsed = Publish_Kintone_Data::parse_webhook_request( '{}', $delete_query );
+pkd_ok( 'DELETE_RECORD' === $parsed['type'] && '22' === $parsed['recordId'], 'kintone.proxy: 本文が {} でもクエリを使う' );
+
+$parsed = Publish_Kintone_Data::parse_webhook_request( '{}', array() );
+pkd_ok( array() === $parsed, '本文もクエリも空なら空配列' );
+
+// kintone.proxy で {} 付きの削除通知を受けたときに、実際に記事が消えること.
+pkd_sync_one( pkd_record( 22, array( 'title' => pkd_field( 'SINGLE_LINE_TEXT', 'proxy で消される記事' ) ) ) );
+pkd_ok( null !== pkd_post_by_record_id( '22' ), '前提: 記事がある' );
+$sync->sync( Publish_Kintone_Data::parse_webhook_request( '{}', $delete_query ) );
+pkd_ok( null === pkd_post_by_record_id( '22' ), 'kintone.proxy の削除通知（本文 {}）で記事が消える' );
+
 // =========================================== save_post 入口（kintone が正）.
 pkd_section( 'save_post 経由の同期' );
 
